@@ -1,3 +1,9 @@
+# Every setting can be overridden by an environment variable after this file is
+# loaded. Use R2S_CONFIG__<SECTION>__<FIELD>, with another "__" for each nested
+# field. For example: R2S_CONFIG__AUTH__SIGNING_KEY or
+# R2S_CONFIG__CLUSTER__REGISTRY__PASSWORD. Environment variables take
+# precedence, but this file is still required.
+
 # * Auditor config, for team name auditing.
 [auditor]
 # ? the sensitive word list file path
