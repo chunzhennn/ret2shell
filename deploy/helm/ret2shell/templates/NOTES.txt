@@ -4,6 +4,16 @@ Ret2Shell chart rendered successfully.
 - Challenge namespace is fixed to `ret2shell-challenge`
 - Platform exposure mode: `{{ .Values.platform.exposure.type }}`
 
+{{- if eq .Values.platform.exposure.type "clusterIP" }}
+
+ClusterIP-only mode keeps the platform Service as:
+
+  {{ include "ret2shell.platformName" . }}.{{ .Release.Namespace }}.svc:{{ .Values.platform.service.port }}
+
+Point a Gateway API HTTPRoute (or another in-cluster ingress) at that Service.
+The chart does not create a NodePort Service or Ingress in this mode.
+{{- end }}
+
 Common install command:
 
   helm install {{ .Release.Name }} {{ .Chart.Name }} -n ret2shell-platform --create-namespace

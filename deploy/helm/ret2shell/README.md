@@ -161,7 +161,7 @@ automatically; trigger a workload rollout after rotating credentials.
 
 Useful switches:
 
-- `platform.exposure.type=ingress|nodePort`
+- `platform.exposure.type=ingress|nodePort|clusterIP`
 - `postgresql.mode=internal|external`
 - `valkey.mode=internal|external`
 - `valkey.architecture=standalone|replication`
@@ -196,6 +196,7 @@ Example renders:
 ```bash
 helm template ret2shell ./deploy/helm/ret2shell -n ret2shell-platform -f ./deploy/helm/ret2shell/examples/values-ingress-internal.yaml
 helm template ret2shell ./deploy/helm/ret2shell -n ret2shell-platform -f ./deploy/helm/ret2shell/examples/values-nodeport-external.yaml
+helm template ret2shell ./deploy/helm/ret2shell -n ret2shell-platform -f ./deploy/helm/ret2shell/examples/values-clusterip-internal.yaml
 ```
 
 The chart defaults are templateable for validation, but you should replace at least these values before production use:

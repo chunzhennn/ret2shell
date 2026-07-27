@@ -38,6 +38,8 @@ platform:
     accessMode: ReadWriteOnce
     size: 420Gi
     storageClass: ""
+  # ingress: create an Ingress; nodePort: create a NodePort Service;
+  # clusterIP: ClusterIP Service only (for Gateway API / HTTPRoute / external LB).
   exposure:
     type: ingress
   service:
