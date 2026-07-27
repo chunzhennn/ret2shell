@@ -1,3 +1,21 @@
+# Every setting can be overridden by an environment variable after this file is
+# loaded. Use R2S_CONFIG__<SECTION>__<FIELD>, with another "__" for each nested
+# field. For example: R2S_CONFIG__AUTH__SIGNING_KEY or
+# R2S_CONFIG__CLUSTER__REGISTRY__PASSWORD. This file is still required and must
+# contain a valid base configuration.
+#
+# Overrides win over this file, but not over the settings kept in the database:
+# everything editable from the admin panel is still resolved in favour of the
+# database.
+#
+# Values use TOML syntax whenever the target field is not a string, so write
+# `true`, not `1` or `TRUE`. An inline table replaces a whole table at once, as
+# in R2S_CONFIG__SERVER__RATE_LIMIT='{ burst_limit = 64 }' -- the table is
+# replaced, not merged into. An empty variable is an ordinary value rather than
+# an absent one: R2S_CONFIG__AUTH__SIGNING_KEY= sets an empty signing key
+# instead of keeping the one below, so beware of templates that render unset
+# values as empty strings.
+
 # * Auditor config, for team name auditing.
 [auditor]
 # ? the sensitive word list file path
