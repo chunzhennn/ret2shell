@@ -2,6 +2,7 @@
 {{- fail "nats.persistence.existingClaim is not supported when nats.replicaCount>1; use volumeClaimTemplates instead" }}
 {{- end }}
 {{- if eq .Values.nats.mode "internal" }}
+{{- if not .Values.nats.auth.existingSecret }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -12,7 +13,8 @@ metadata:
     app.kubernetes.io/component: nats
 type: Opaque
 stringData:
-  token: {{ .Values.nats.auth.token | quote }}
+  {{ .Values.nats.auth.secretKeys.token | quote }}: {{ .Values.nats.auth.token | quote }}
+{{- end }}
 
 ---
 apiVersion: v1
@@ -161,8 +163,8 @@ spec:
             - name: NATS_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.natsName" . }}
-                  key: token
+                  name: {{ include "ret2shell.natsSecretName" . }}
+                  key: {{ .Values.nats.auth.secretKeys.token | quote }}
             {{- end }}
           ports:
             - name: client

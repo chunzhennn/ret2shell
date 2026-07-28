@@ -85,6 +85,10 @@ ret2shell-platform-headless
 ret2shell-postgresql
 {{- end -}}
 
+{{- define "ret2shell.postgresqlSecretName" -}}
+{{- default (include "ret2shell.postgresqlName" .) .Values.postgresql.auth.existingSecret -}}
+{{- end -}}
+
 {{- define "ret2shell.postgresqlHeadlessName" -}}
 ret2shell-postgresql-headless
 {{- end -}}
@@ -93,12 +97,20 @@ ret2shell-postgresql-headless
 ret2shell-valkey
 {{- end -}}
 
+{{- define "ret2shell.valkeySecretName" -}}
+{{- default (include "ret2shell.valkeyName" .) .Values.valkey.auth.existingSecret -}}
+{{- end -}}
+
 {{- define "ret2shell.valkeyHeadlessName" -}}
 ret2shell-valkey-headless
 {{- end -}}
 
 {{- define "ret2shell.natsName" -}}
 ret2shell-nats
+{{- end -}}
+
+{{- define "ret2shell.natsSecretName" -}}
+{{- default (include "ret2shell.natsName" .) .Values.nats.auth.existingSecret -}}
 {{- end -}}
 
 {{- define "ret2shell.natsHeadlessName" -}}

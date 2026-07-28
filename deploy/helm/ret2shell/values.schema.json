@@ -62,6 +62,23 @@
         "config": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "config": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["config"]
+            },
+            "existingEnvSecret": {
+              "type": "string"
+            },
             "cluster": {
               "type": "object",
               "properties": {
@@ -176,9 +193,62 @@
           "type": "string",
           "enum": ["internal", "external"]
         },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "database": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["username", "password", "database"]
+            }
+          }
+        },
         "external": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "database": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["username", "password", "database"]
+            },
             "host": {
               "type": "string"
             }
@@ -221,6 +291,25 @@
           "type": "string",
           "enum": ["standalone", "replication"]
         },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["password"]
+            }
+          }
+        },
         "replica": {
           "type": "object",
           "properties": {
@@ -233,6 +322,20 @@
         "external": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["url"]
+            },
             "url": {
               "type": "string"
             }
@@ -245,9 +348,17 @@
             "properties": {
               "mode": {
                 "const": "external"
+              },
+              "external": {
+                "properties": {
+                  "existingSecret": {
+                    "maxLength": 0
+                  }
+                },
+                "required": ["existingSecret"]
               }
             },
-            "required": ["mode"]
+            "required": ["mode", "external"]
           },
           "then": {
             "properties": {
@@ -275,9 +386,49 @@
           "type": "integer",
           "minimum": 1
         },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["token"]
+            }
+          }
+        },
         "external": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
+                },
+                "user": {
+                  "type": "string",
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
+                },
+                "password": {
+                  "type": "string",
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["token", "user", "password"]
+            },
             "host": {
               "type": "string"
             }
@@ -303,6 +454,56 @@
                   }
                 },
                 "required": ["host"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "external"
+              },
+              "external": {
+                "properties": {
+                  "existingSecret": {
+                    "minLength": 1
+                  }
+                },
+                "required": ["existingSecret"]
+              }
+            },
+            "required": ["mode", "external"]
+          },
+          "then": {
+            "properties": {
+              "external": {
+                "properties": {
+                  "secretKeys": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "token": {
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["token"]
+                      },
+                      {
+                        "properties": {
+                          "user": {
+                            "minLength": 1
+                          },
+                          "password": {
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["user", "password"]
+                      }
+                    ]
+                  }
+                },
+                "required": ["secretKeys"]
               }
             }
           }
@@ -335,6 +536,25 @@
         "external": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["username", "password"]
+            },
             "server": {
               "type": "string"
             },
@@ -404,6 +624,20 @@
         "external": {
           "type": "object",
           "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKeys": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": ["url"]
+            },
             "url": {
               "type": "string"
             }
@@ -416,9 +650,17 @@
             "properties": {
               "mode": {
                 "const": "external"
+              },
+              "external": {
+                "properties": {
+                  "existingSecret": {
+                    "maxLength": 0
+                  }
+                },
+                "required": ["existingSecret"]
               }
             },
-            "required": ["mode"]
+            "required": ["mode", "external"]
           },
           "then": {
             "properties": {

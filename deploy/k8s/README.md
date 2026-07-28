@@ -30,7 +30,7 @@ What changes with the new flow:
 - `values-common.yaml`: shared chart values for the internal dependency stack
 - `values-nodeport.yaml`: NodePort exposure, closest to the old `7-platform.yaml` plus external nginx layout
 - `values-ingress.yaml`: ingress exposure for clusters with an ingress controller
-- `values.private.example.yaml`: copy to `values.private.yaml` and fill in release tag and secrets
+- `values.private.example.yaml`: copy to `values.private.yaml` and fill in the release tag and existing Secret names
 - `values-ha.example.yaml`: optional overlay for NATS clustering, registry horizontal scaling, and ServiceMonitor-based metrics
 
 The default local PV paths intentionally stay under `/srv/ret2shell/backend/storage` so an existing `deploy/k8s-deprecated` installation can reuse the same on-node data directories without moving them first.
@@ -52,7 +52,10 @@ The default local PV paths intentionally stay under `/srv/ret2shell/backend/stor
    kubectl apply -f deploy/k8s/storage-local-ha.example.yaml
    ```
 
-3. Copy the private values template and fill in real secrets:
+3. Create the credential Secrets described in the
+   [Helm chart README](../helm/ret2shell/README.md#existing-credential-secrets).
+   Then copy the private values template and set the release tag and Secret
+   names:
 
    ```bash
    cp deploy/k8s/values.private.example.yaml deploy/k8s/values.private.yaml
@@ -82,9 +85,11 @@ The default local PV paths intentionally stay under `/srv/ret2shell/backend/stor
 ## Notes
 
 - Keep `platform.image.tag` in `deploy/k8s/values.private.yaml` aligned with the chart release you install.
+- Keep real credentials in the referenced Secrets; `values.private.yaml` only needs their names.
 - If you install from the source chart at `deploy/helm/ret2shell`, you still need the same values layering, but the image tag is taken only from your values files.
 - The chart uses `ghcr.io/ret2shell/ret2shell` for the platform image. The integrated registry is only for challenge images and cluster-side image distribution.
 - If you already manage `config.toml` or `blocked.txt` yourself, set `platform.config.existingSecret` and `platform.blocked.existingConfigMap` instead of using generated values.
+- If the chart still generates `config.toml`, set `platform.config.existingEnvSecret` to inject credential overrides without putting them in Helm values.
 - If you want a default challenge scheduling label, label nodes first and then set `platform.config.cluster.nodeSelector`.
 - `valkey.architecture=replication` uses StatefulSet pod `0` as the primary and the remaining pods as replicas.
 - `nats.replicaCount` enables NATS cluster routing in the bundled chart.

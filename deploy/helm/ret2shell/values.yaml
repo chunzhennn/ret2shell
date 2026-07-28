@@ -55,7 +55,12 @@ platform:
             pathType: Prefix
     tls: []
   config:
+    # Existing Secret containing a complete config.toml.
     existingSecret: ""
+    secretKeys:
+      config: config.toml
+    # Existing Secret whose keys are R2S_CONFIG__... environment variables.
+    existingEnvSecret: ""
     auth:
       signingKey: K3yInD3v3l0pm3nt
       bufferTime: 21600
@@ -117,6 +122,12 @@ postgresql:
     digest: ""
     pullPolicy: IfNotPresent
   auth:
+    # Existing Secret. Customize its data keys below.
+    existingSecret: ""
+    secretKeys:
+      username: username
+      password: password
+      database: database
     database: ret2shell
     username: ret2shell
     password: P@ssw02dInD3v3l0pm3nt
@@ -158,6 +169,12 @@ postgresql:
       labels: {}
       annotations: {}
   external:
+    # Existing Secret used only in external mode. Customize its data keys below.
+    existingSecret: ""
+    secretKeys:
+      username: username
+      password: password
+      database: database
     host: postgresql.example.com
     port: 5432
     database: ret2shell
@@ -174,6 +191,10 @@ valkey:
     digest: ""
     pullPolicy: IfNotPresent
   auth:
+    # Existing Secret. Customize its data key below.
+    existingSecret: ""
+    secretKeys:
+      password: password
     enabled: true
     password: P@ssw0rdInD3v3l0pm3nt
   service:
@@ -216,6 +237,10 @@ valkey:
       labels: {}
       annotations: {}
   external:
+    # Existing Secret used only in external mode. Customize its data key below.
+    existingSecret: ""
+    secretKeys:
+      url: url
     url: redis://:replace-me@valkey.example.com:6379/0
 
 nats:
@@ -227,6 +252,10 @@ nats:
     digest: ""
     pullPolicy: IfNotPresent
   auth:
+    # Existing Secret. Customize its data key below.
+    existingSecret: ""
+    secretKeys:
+      token: token
     enabled: true
     token: T0k3nInD3v3l0pm3nt
   service:
@@ -265,6 +294,13 @@ nats:
       labels: {}
       annotations: {}
   external:
+    # Existing Secret used only in external mode. Configure either token or
+    # both user and password data keys. An empty key disables that reference.
+    existingSecret: ""
+    secretKeys:
+      token: token
+      user: ""
+      password: ""
     host: nats.example.com
     port: 4222
     token: replace-me
@@ -322,6 +358,11 @@ registry:
       labels: {}
       annotations: {}
   external:
+    # Existing Secret used only in external mode. Customize its data keys below.
+    existingSecret: ""
+    secretKeys:
+      username: username
+      password: password
     server: registry.example.com
     external: registry.example.com
     insecure: false
@@ -364,4 +405,8 @@ victoriaLogs:
     labels: {}
     annotations: {}
   external:
+    # Existing Secret used only in external mode. Customize its data key below.
+    existingSecret: ""
+    secretKeys:
+      url: url
     url: http://victoria-logs.example.com:9428

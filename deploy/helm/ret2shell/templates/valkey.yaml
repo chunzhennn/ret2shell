@@ -2,6 +2,7 @@
 {{- fail "valkey.persistence.existingClaim is not supported when valkey.architecture=replication; use volumeClaimTemplates instead" }}
 {{- end }}
 {{- if eq .Values.valkey.mode "internal" }}
+{{- if not .Values.valkey.auth.existingSecret }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -12,7 +13,8 @@ metadata:
     app.kubernetes.io/component: valkey
 type: Opaque
 stringData:
-  password: {{ .Values.valkey.auth.password | quote }}
+  {{ .Values.valkey.auth.secretKeys.password | quote }}: {{ .Values.valkey.auth.password | quote }}
+{{- end }}
 
 ---
 apiVersion: v1
@@ -154,8 +156,8 @@ spec:
             - name: VALKEY_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.valkeyName" . }}
-                  key: password
+                  name: {{ include "ret2shell.valkeySecretName" . }}
+                  key: {{ .Values.valkey.auth.secretKeys.password | quote }}
             {{- end }}
           ports:
             - name: valkey
@@ -191,8 +193,8 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.valkeyName" . }}
-                  key: password
+                  name: {{ include "ret2shell.valkeySecretName" . }}
+                  key: {{ .Values.valkey.auth.secretKeys.password | quote }}
             {{- end }}
           ports:
             - name: metrics

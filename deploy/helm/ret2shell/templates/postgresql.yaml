@@ -1,4 +1,5 @@
 {{- if eq .Values.postgresql.mode "internal" }}
+{{- if not .Values.postgresql.auth.existingSecret }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -9,9 +10,10 @@ metadata:
     app.kubernetes.io/component: postgresql
 type: Opaque
 stringData:
-  username: {{ .Values.postgresql.auth.username | quote }}
-  password: {{ .Values.postgresql.auth.password | quote }}
-  database: {{ .Values.postgresql.auth.database | quote }}
+  {{ .Values.postgresql.auth.secretKeys.username | quote }}: {{ .Values.postgresql.auth.username | quote }}
+  {{ .Values.postgresql.auth.secretKeys.password | quote }}: {{ .Values.postgresql.auth.password | quote }}
+  {{ .Values.postgresql.auth.secretKeys.database | quote }}: {{ .Values.postgresql.auth.database | quote }}
+{{- end }}
 
 ---
 apiVersion: v1
@@ -106,18 +108,18 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.postgresqlName" . }}
-                  key: username
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.username | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.postgresqlName" . }}
-                  key: password
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.password | quote }}
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.postgresqlName" . }}
-                  key: database
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.database | quote }}
           ports:
             - name: postgres
               containerPort: {{ .Values.postgresql.service.port }}
@@ -154,13 +156,13 @@ spec:
             - name: DATA_SOURCE_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.postgresqlName" . }}
-                  key: username
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.username | quote }}
             - name: DATA_SOURCE_PASS
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ret2shell.postgresqlName" . }}
-                  key: password
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.password | quote }}
           ports:
             - name: metrics
               containerPort: {{ .Values.postgresql.metrics.port }}

@@ -1,3 +1,8 @@
+{{- $externalPostgresqlSecret := and (eq .Values.postgresql.mode "external") .Values.postgresql.external.existingSecret -}}
+{{- $externalValkeySecret := and (eq .Values.valkey.mode "external") .Values.valkey.external.existingSecret -}}
+{{- $externalNatsSecret := and (eq .Values.nats.mode "external") .Values.nats.external.existingSecret -}}
+{{- $externalRegistrySecret := and (eq .Values.registry.mode "external") .Values.registry.external.existingSecret -}}
+{{- $externalVictoriaLogsSecret := and (eq .Values.victoriaLogs.mode "external") .Values.victoriaLogs.external.existingSecret -}}
 {{- if not .Values.platform.config.existingSecret }}
 apiVersion: v1
 kind: Secret
@@ -9,7 +14,7 @@ metadata:
     app.kubernetes.io/component: platform
 type: Opaque
 stringData:
-  config.toml: |
+  {{ .Values.platform.config.secretKeys.config | quote }}: |
     {{- include "ret2shell.platformConfigToml" . | nindent 4 }}
 {{- end }}
 
@@ -173,6 +178,80 @@ spec:
         - name: platform
           image: {{ include "ret2shell.image" .Values.platform.image }}
           imagePullPolicy: {{ .Values.platform.image.pullPolicy }}
+          {{- with .Values.platform.config.existingEnvSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ . | quote }}
+          {{- end }}
+          {{- if or $externalPostgresqlSecret $externalValkeySecret $externalNatsSecret $externalRegistrySecret $externalVictoriaLogsSecret }}
+          env:
+            {{- if $externalPostgresqlSecret }}
+            - name: R2S_CONFIG__DATABASE__DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret | quote }}
+                  key: {{ .Values.postgresql.external.secretKeys.database | quote }}
+            - name: R2S_CONFIG__DATABASE__USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret | quote }}
+                  key: {{ .Values.postgresql.external.secretKeys.username | quote }}
+            - name: R2S_CONFIG__DATABASE__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret | quote }}
+                  key: {{ .Values.postgresql.external.secretKeys.password | quote }}
+            {{- end }}
+            {{- if $externalValkeySecret }}
+            - name: R2S_CONFIG__CACHE__URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.valkey.external.existingSecret | quote }}
+                  key: {{ .Values.valkey.external.secretKeys.url | quote }}
+            {{- end }}
+            {{- if $externalNatsSecret }}
+            {{- with .Values.nats.external.secretKeys.token }}
+            - name: R2S_CONFIG__QUEUE__TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.nats.external.existingSecret | quote }}
+                  key: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.nats.external.secretKeys.user }}
+            - name: R2S_CONFIG__QUEUE__USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.nats.external.existingSecret | quote }}
+                  key: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.nats.external.secretKeys.password }}
+            - name: R2S_CONFIG__QUEUE__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.nats.external.existingSecret | quote }}
+                  key: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if $externalRegistrySecret }}
+            - name: R2S_CONFIG__CLUSTER__REGISTRY__USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.registry.external.existingSecret | quote }}
+                  key: {{ .Values.registry.external.secretKeys.username | quote }}
+            - name: R2S_CONFIG__CLUSTER__REGISTRY__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.registry.external.existingSecret | quote }}
+                  key: {{ .Values.registry.external.secretKeys.password | quote }}
+            {{- end }}
+            {{- if $externalVictoriaLogsSecret }}
+            - name: R2S_CONFIG__LOGGING__VICTORIA
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.victoriaLogs.external.existingSecret | quote }}
+                  key: {{ .Values.victoriaLogs.external.secretKeys.url | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.platform.service.port }}
@@ -216,6 +295,9 @@ spec:
         - name: config
           secret:
             secretName: {{ include "ret2shell.platformConfigSecretName" . }}
+            items:
+              - key: {{ .Values.platform.config.secretKeys.config | quote }}
+                path: config.toml
         - name: blocked
           configMap:
             name: {{ include "ret2shell.platformBlockedConfigMapName" . }}
