@@ -1,5 +1,8 @@
+{{- $internalPostgresqlSecret := and (eq .Values.postgresql.mode "internal") .Values.postgresql.auth.existingSecret -}}
 {{- $externalPostgresqlSecret := and (eq .Values.postgresql.mode "external") .Values.postgresql.external.existingSecret -}}
+{{- $internalValkeySecret := and (eq .Values.valkey.mode "internal") .Values.valkey.auth.enabled .Values.valkey.auth.existingSecret -}}
 {{- $externalValkeySecret := and (eq .Values.valkey.mode "external") .Values.valkey.external.existingSecret -}}
+{{- $internalNatsSecret := and (eq .Values.nats.mode "internal") .Values.nats.auth.enabled .Values.nats.auth.existingSecret -}}
 {{- $externalNatsSecret := and (eq .Values.nats.mode "external") .Values.nats.external.existingSecret -}}
 {{- $externalRegistrySecret := and (eq .Values.registry.mode "external") .Values.registry.external.existingSecret -}}
 {{- $externalVictoriaLogsSecret := and (eq .Values.victoriaLogs.mode "external") .Values.victoriaLogs.external.existingSecret -}}
@@ -183,8 +186,25 @@ spec:
             - secretRef:
                 name: {{ . | quote }}
           {{- end }}
-          {{- if or $externalPostgresqlSecret $externalValkeySecret $externalNatsSecret $externalRegistrySecret $externalVictoriaLogsSecret }}
+          {{- if or $internalPostgresqlSecret $externalPostgresqlSecret $internalValkeySecret $externalValkeySecret $internalNatsSecret $externalNatsSecret $externalRegistrySecret $externalVictoriaLogsSecret }}
           env:
+            {{- if $internalPostgresqlSecret }}
+            - name: R2S_CONFIG__DATABASE__DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.database | quote }}
+            - name: R2S_CONFIG__DATABASE__USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.username | quote }}
+            - name: R2S_CONFIG__DATABASE__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ret2shell.postgresqlSecretName" . }}
+                  key: {{ .Values.postgresql.auth.secretKeys.password | quote }}
+            {{- end }}
             {{- if $externalPostgresqlSecret }}
             - name: R2S_CONFIG__DATABASE__DB
               valueFrom:
@@ -202,12 +222,26 @@ spec:
                   name: {{ .Values.postgresql.external.existingSecret | quote }}
                   key: {{ .Values.postgresql.external.secretKeys.password | quote }}
             {{- end }}
+            {{- if $internalValkeySecret }}
+            - name: R2S_CONFIG__CACHE__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ret2shell.valkeySecretName" . }}
+                  key: {{ .Values.valkey.auth.secretKeys.password | quote }}
+            {{- end }}
             {{- if $externalValkeySecret }}
             - name: R2S_CONFIG__CACHE__URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.valkey.external.existingSecret | quote }}
                   key: {{ .Values.valkey.external.secretKeys.url | quote }}
+            {{- end }}
+            {{- if $internalNatsSecret }}
+            - name: R2S_CONFIG__QUEUE__TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ret2shell.natsSecretName" . }}
+                  key: {{ .Values.nats.auth.secretKeys.token | quote }}
             {{- end }}
             {{- if $externalNatsSecret }}
             {{- with .Values.nats.external.secretKeys.token }}

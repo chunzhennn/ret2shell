@@ -16,7 +16,11 @@
 
 {{- define "ret2shell.databaseName" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
+{{- if .Values.postgresql.auth.existingSecret -}}
+{{- print "" -}}
+{{- else -}}
 {{ .Values.postgresql.auth.database }}
+{{- end -}}
 {{- else if .Values.postgresql.external.existingSecret -}}
 {{- print "" -}}
 {{- else -}}
@@ -26,7 +30,11 @@
 
 {{- define "ret2shell.databaseUser" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
+{{- if .Values.postgresql.auth.existingSecret -}}
+{{- print "" -}}
+{{- else -}}
 {{ .Values.postgresql.auth.username }}
+{{- end -}}
 {{- else if .Values.postgresql.external.existingSecret -}}
 {{- print "" -}}
 {{- else -}}
@@ -36,7 +44,11 @@
 
 {{- define "ret2shell.databasePassword" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
+{{- if .Values.postgresql.auth.existingSecret -}}
+{{- print "" -}}
+{{- else -}}
 {{ .Values.postgresql.auth.password }}
+{{- end -}}
 {{- else if .Values.postgresql.external.existingSecret -}}
 {{- print "" -}}
 {{- else -}}
@@ -55,7 +67,11 @@ disable
 {{- define "ret2shell.cacheUrl" -}}
 {{- if eq .Values.valkey.mode "internal" -}}
 {{- if .Values.valkey.auth.enabled -}}
+{{- if .Values.valkey.auth.existingSecret -}}
+{{ printf "redis://%s:%d/0" (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
+{{- else -}}
 {{ printf "redis://:%s@%s:%d/0" (.Values.valkey.auth.password | urlquery) (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
+{{- end -}}
 {{- else -}}
 {{ printf "redis://%s:%d/0" (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
 {{- end -}}
@@ -84,7 +100,7 @@ disable
 
 {{- define "ret2shell.queueToken" -}}
 {{- if eq .Values.nats.mode "internal" -}}
-{{- if .Values.nats.auth.enabled -}}
+{{- if and .Values.nats.auth.enabled (not .Values.nats.auth.existingSecret) -}}
 {{ .Values.nats.auth.token }}
 {{- end -}}
 {{- else if .Values.nats.external.existingSecret -}}

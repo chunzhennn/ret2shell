@@ -19,6 +19,12 @@ pub struct Config {
   /// The URL of the cache server. See the struct-level documentation for
   /// supported schemes.
   pub url: String,
+  /// Optional password applied separately from the URL.
+  ///
+  /// This avoids embedding credentials in a connection URL and takes
+  /// precedence over a password already present in `url`.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub password: Option<String>,
 }
 
 impl Merge for Option<Config> {

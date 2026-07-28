@@ -31,6 +31,8 @@ path = './data/bucket'
 # ? - rediss-cluster://host:port,host:port,… (cluster over TLS)
 # ? Sentinel (redis-sentinel:// / rediss-sentinel://) is not yet supported.
 url = 'redis://localhost:6379'
+# ? Optional separate password; overrides a password embedded in the URL.
+# password = 'replace-me'
 
 # * Captcha config
 [captcha]

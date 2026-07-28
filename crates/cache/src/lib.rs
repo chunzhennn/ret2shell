@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use r2s_config::cache;
 use redis::{
-  AsyncCommands, Cmd, Pipeline, RedisFuture, SetExpiry, SetOptions, Value,
+  AsyncCommands, Cmd, ConnectionInfo, IntoConnectionInfo, Pipeline, RedisFuture, SetExpiry,
+  SetOptions, Value,
   aio::{ConnectionLike, ConnectionManager},
   cluster::ClusterClient,
   cluster_async::ClusterConnection,
@@ -254,6 +255,17 @@ impl Cache {
   }
 }
 
+fn connection_info(url: &str, password: Option<&str>) -> Result<ConnectionInfo, redis::RedisError> {
+  let info = url.into_connection_info()?;
+
+  if let Some(password) = password {
+    let redis_settings = info.redis_settings().clone().set_password(password);
+    return Ok(info.set_redis_settings(redis_settings));
+  }
+
+  Ok(info)
+}
+
 /// Initialize the cache manager.
 ///
 /// Supports the following URL schemes:
@@ -280,7 +292,11 @@ pub async fn initialize(
         .split(',')
         .map(|n| format!("redis://{n}"))
         .collect();
-      let client = ClusterClient::new(nodes)?;
+      let mut builder = ClusterClient::builder(nodes);
+      if let Some(password) = config.password.as_deref() {
+        builder = builder.password(password);
+      }
+      let client = builder.build()?;
       let cluster_conn = client.get_async_connection().await?;
       RedisConnection::Cluster(cluster_conn)
     }
@@ -290,7 +306,11 @@ pub async fn initialize(
         .split(',')
         .map(|n| format!("rediss://{n}"))
         .collect();
-      let client = ClusterClient::new(nodes)?;
+      let mut builder = ClusterClient::builder(nodes);
+      if let Some(password) = config.password.as_deref() {
+        builder = builder.password(password);
+      }
+      let client = builder.build()?;
       let cluster_conn = client.get_async_connection().await?;
       RedisConnection::Cluster(cluster_conn)
     }
@@ -300,7 +320,7 @@ pub async fn initialize(
       ));
     }
     url => {
-      let client = redis::Client::open(url)?;
+      let client = redis::Client::open(connection_info(url, config.password.as_deref())?)?;
       let conn = client.get_connection_manager().await?;
       RedisConnection::Standalone(conn)
     }
@@ -325,6 +345,20 @@ pub async fn down(config: &Option<cache::Config>) -> Result<(), CacheError> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_separate_password_overrides_url_password() {
+    let info = connection_info(
+      "redis://:password-in-url@localhost:6379/0",
+      Some("password-from-secret"),
+    )
+    .unwrap();
+
+    assert_eq!(
+      info.redis_settings().password(),
+      Some("password-from-secret")
+    );
+  }
 
   #[test]
   fn test_cache_error_domain_needed_display() {

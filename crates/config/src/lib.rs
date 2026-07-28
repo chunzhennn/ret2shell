@@ -268,6 +268,9 @@ buffer_time = 21600
 expires_time = 86400
 signing_key = "file-secret"
 
+[cache]
+url = "redis://127.0.0.1:6379/0"
+
 [queue]
 host = "127.0.0.1"
 
@@ -298,6 +301,7 @@ burst_restore_rate = 500
       environment(&[
         ("R2S_CONFIG__AUTH__SIGNING_KEY", "true"),
         ("R2S_CONFIG__AUTH__EXPIRES_TIME", "60"),
+        ("R2S_CONFIG__CACHE__PASSWORD", "cache-secret"),
         ("R2S_CONFIG__QUEUE__TLS", "true"),
         ("R2S_CONFIG__SERVER__RATE_LIMIT__BURST_LIMIT", "64"),
       ]),
@@ -307,6 +311,10 @@ burst_restore_rate = 500
     let auth = config.auth.unwrap();
     assert_eq!(auth.signing_key, "true");
     assert_eq!(auth.expires_time, 60);
+    assert_eq!(
+      config.cache.unwrap().password.as_deref(),
+      Some("cache-secret")
+    );
     assert_eq!(config.queue.unwrap().tls, Some(true));
     assert_eq!(
       config.server.unwrap().rate_limit.unwrap().burst_limit,
