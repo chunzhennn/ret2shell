@@ -106,20 +106,32 @@ spec:
             - name: PGDATA
               value: /var/lib/postgresql/data
             - name: POSTGRES_USER
+              {{- if and .Values.postgresql.auth.existingSecret (not .Values.postgresql.auth.secretKeys.username) }}
+              value: {{ .Values.postgresql.auth.username | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.postgresqlSecretName" . }}
                   key: {{ .Values.postgresql.auth.secretKeys.username | quote }}
+              {{- end }}
             - name: POSTGRES_PASSWORD
+              {{- if and .Values.postgresql.auth.existingSecret (not .Values.postgresql.auth.secretKeys.password) }}
+              value: {{ .Values.postgresql.auth.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.postgresqlSecretName" . }}
                   key: {{ .Values.postgresql.auth.secretKeys.password | quote }}
+              {{- end }}
             - name: POSTGRES_DB
+              {{- if and .Values.postgresql.auth.existingSecret (not .Values.postgresql.auth.secretKeys.database) }}
+              value: {{ .Values.postgresql.auth.database | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.postgresqlSecretName" . }}
                   key: {{ .Values.postgresql.auth.secretKeys.database | quote }}
+              {{- end }}
           ports:
             - name: postgres
               containerPort: {{ .Values.postgresql.service.port }}
@@ -154,15 +166,23 @@ spec:
             - name: DATA_SOURCE_URI
               value: 127.0.0.1:{{ .Values.postgresql.service.port }}/postgres?sslmode=disable
             - name: DATA_SOURCE_USER
+              {{- if and .Values.postgresql.auth.existingSecret (not .Values.postgresql.auth.secretKeys.username) }}
+              value: {{ .Values.postgresql.auth.username | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.postgresqlSecretName" . }}
                   key: {{ .Values.postgresql.auth.secretKeys.username | quote }}
+              {{- end }}
             - name: DATA_SOURCE_PASS
+              {{- if and .Values.postgresql.auth.existingSecret (not .Values.postgresql.auth.secretKeys.password) }}
+              value: {{ .Values.postgresql.auth.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.postgresqlSecretName" . }}
                   key: {{ .Values.postgresql.auth.secretKeys.password | quote }}
+              {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.postgresql.metrics.port }}

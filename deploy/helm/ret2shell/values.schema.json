@@ -204,18 +204,15 @@
               "properties": {
                 "username": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 },
                 "password": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 },
                 "database": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["username", "password", "database"]
@@ -233,18 +230,15 @@
               "properties": {
                 "username": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 },
                 "password": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 },
                 "database": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["username", "password", "database"]
@@ -277,6 +271,45 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "internal"
+              },
+              "auth": {
+                "properties": {
+                  "existingSecret": {
+                    "maxLength": 0
+                  }
+                },
+                "required": ["existingSecret"]
+              }
+            },
+            "required": ["mode", "auth"]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "secretKeys": {
+                    "properties": {
+                      "username": {
+                        "minLength": 1
+                      },
+                      "password": {
+                        "minLength": 1
+                      },
+                      "database": {
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -302,8 +335,7 @@
               "properties": {
                 "password": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["password"]
@@ -330,8 +362,7 @@
               "properties": {
                 "url": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["url"]
@@ -350,12 +381,29 @@
                 "const": "external"
               },
               "external": {
-                "properties": {
-                  "existingSecret": {
-                    "maxLength": 0
+                "anyOf": [
+                  {
+                    "properties": {
+                      "existingSecret": {
+                        "maxLength": 0
+                      }
+                    },
+                    "required": ["existingSecret"]
+                  },
+                  {
+                    "properties": {
+                      "secretKeys": {
+                        "properties": {
+                          "url": {
+                            "maxLength": 0
+                          }
+                        },
+                        "required": ["url"]
+                      }
+                    },
+                    "required": ["secretKeys"]
                   }
-                },
-                "required": ["existingSecret"]
+                ]
               }
             },
             "required": ["mode", "external"]
@@ -369,6 +417,39 @@
                   }
                 },
                 "required": ["url"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "internal"
+              },
+              "auth": {
+                "properties": {
+                  "existingSecret": {
+                    "maxLength": 0
+                  }
+                },
+                "required": ["existingSecret"]
+              }
+            },
+            "required": ["mode", "auth"]
+          },
+          "then": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "secretKeys": {
+                    "properties": {
+                      "password": {
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -397,8 +478,7 @@
               "properties": {
                 "token": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["token"]
@@ -462,48 +542,31 @@
           "if": {
             "properties": {
               "mode": {
-                "const": "external"
+                "const": "internal"
               },
-              "external": {
+              "auth": {
                 "properties": {
                   "existingSecret": {
-                    "minLength": 1
+                    "maxLength": 0
                   }
                 },
                 "required": ["existingSecret"]
               }
             },
-            "required": ["mode", "external"]
+            "required": ["mode", "auth"]
           },
           "then": {
             "properties": {
-              "external": {
+              "auth": {
                 "properties": {
                   "secretKeys": {
-                    "anyOf": [
-                      {
-                        "properties": {
-                          "token": {
-                            "minLength": 1
-                          }
-                        },
-                        "required": ["token"]
-                      },
-                      {
-                        "properties": {
-                          "user": {
-                            "minLength": 1
-                          },
-                          "password": {
-                            "minLength": 1
-                          }
-                        },
-                        "required": ["user", "password"]
+                    "properties": {
+                      "token": {
+                        "minLength": 1
                       }
-                    ]
+                    }
                   }
-                },
-                "required": ["secretKeys"]
+                }
               }
             }
           }
@@ -544,13 +607,11 @@
               "properties": {
                 "username": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 },
                 "password": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["username", "password"]
@@ -632,8 +693,7 @@
               "properties": {
                 "url": {
                   "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[A-Za-z0-9._-]+$"
+                  "pattern": "^$|^[A-Za-z0-9._-]+$"
                 }
               },
               "required": ["url"]
@@ -652,12 +712,29 @@
                 "const": "external"
               },
               "external": {
-                "properties": {
-                  "existingSecret": {
-                    "maxLength": 0
+                "anyOf": [
+                  {
+                    "properties": {
+                      "existingSecret": {
+                        "maxLength": 0
+                      }
+                    },
+                    "required": ["existingSecret"]
+                  },
+                  {
+                    "properties": {
+                      "secretKeys": {
+                        "properties": {
+                          "url": {
+                            "maxLength": 0
+                          }
+                        },
+                        "required": ["url"]
+                      }
+                    },
+                    "required": ["secretKeys"]
                   }
-                },
-                "required": ["existingSecret"]
+                ]
               }
             },
             "required": ["mode", "external"]

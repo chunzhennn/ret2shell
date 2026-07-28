@@ -161,10 +161,14 @@ spec:
                   fieldPath: metadata.namespace
             {{- if .Values.nats.auth.enabled }}
             - name: NATS_AUTH_TOKEN
+              {{- if and .Values.nats.auth.existingSecret (not .Values.nats.auth.secretKeys.token) }}
+              value: {{ .Values.nats.auth.token | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.natsSecretName" . }}
                   key: {{ .Values.nats.auth.secretKeys.token | quote }}
+              {{- end }}
             {{- end }}
           ports:
             - name: client

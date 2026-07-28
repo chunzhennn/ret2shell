@@ -41,9 +41,11 @@ postgresql:
   auth:
     existingSecret: ret2shell-postgresql-credentials
     secretKeys:
-      username: database-user
+      username: ""
       password: database-password
-      database: database-name
+      database: ""
+    username: ret2shell
+    database: ret2shell
 valkey:
   auth:
     existingSecret: ret2shell-valkey-credentials
@@ -123,24 +125,26 @@ configured by each component's `secretKeys` map. For bundled services, their
 defaults remain `username`, `password`, and `database` for PostgreSQL,
 `password` for Valkey, and `token` for NATS.
 
-Component-specific Secrets are mapped to explicit platform configuration
-environment variables. They take precedence over both inline values and the
-same variables from `platform.config.existingEnvSecret`; the corresponding
-inline credentials or URLs are not rendered into `config.toml`.
+Each `secretKeys` entry is independent when `existingSecret` is set. A
+non-empty entry maps that field from the Secret and omits its inline value from
+`config.toml`; an empty entry renders no Secret-backed environment variable and
+keeps the corresponding inline value. This allows combinations such as inline
+PostgreSQL username/database with only the password stored in a Secret.
+Secret-backed variables take precedence over the same variables from
+`platform.config.existingEnvSecret`.
+
+When `existingSecret` is empty for an internal component, the chart creates the
+component Secret, so its `secretKeys` entries must remain non-empty.
 
 In internal mode, PostgreSQL, Valkey, and NATS automatically reuse their
 respective `auth.existingSecret` for the platform connection. Valkey supplies
 its password separately from the generated non-credential URL, so arbitrary
 password characters do not require URL encoding.
 
-For external modes:
-- PostgreSQL expects the selected `username`, `password`, and `database` keys.
-- Valkey expects one key containing the complete connection URL.
-- NATS supports either a `token` key or both `user` and `password` keys. Set an
-  unused key mapping to `""`; if both authentication methods are configured,
-  the token takes precedence.
-- Registry expects the selected `username` and `password` keys.
-- VictoriaLogs expects one key containing its complete URL.
+For external modes, PostgreSQL, NATS, and Registry can independently mix inline
+fields with Secret-backed fields. Valkey and VictoriaLogs each have one
+Secret-mappable URL field; leaving that key mapping empty uses the inline URL.
+If both NATS authentication methods are configured, the token takes precedence.
 
 The external registry credentials configure the Ret2Shell registry client;
 they are not Kubernetes image pull credentials. `global.imagePullSecrets`

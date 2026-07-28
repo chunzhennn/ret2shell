@@ -154,10 +154,14 @@ spec:
                   fieldPath: metadata.namespace
             {{- if .Values.valkey.auth.enabled }}
             - name: VALKEY_PASSWORD
+              {{- if and .Values.valkey.auth.existingSecret (not .Values.valkey.auth.secretKeys.password) }}
+              value: {{ .Values.valkey.auth.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.valkeySecretName" . }}
                   key: {{ .Values.valkey.auth.secretKeys.password | quote }}
+              {{- end }}
             {{- end }}
           ports:
             - name: valkey
@@ -191,10 +195,14 @@ spec:
               value: redis://127.0.0.1:{{ .Values.valkey.service.port }}
             {{- if .Values.valkey.auth.enabled }}
             - name: REDIS_PASSWORD
+              {{- if and .Values.valkey.auth.existingSecret (not .Values.valkey.auth.secretKeys.password) }}
+              value: {{ .Values.valkey.auth.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ret2shell.valkeySecretName" . }}
                   key: {{ .Values.valkey.auth.secretKeys.password | quote }}
+              {{- end }}
             {{- end }}
           ports:
             - name: metrics

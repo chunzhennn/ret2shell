@@ -16,12 +16,12 @@
 
 {{- define "ret2shell.databaseName" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
-{{- if .Values.postgresql.auth.existingSecret -}}
+{{- if and .Values.postgresql.auth.existingSecret .Values.postgresql.auth.secretKeys.database -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.auth.database }}
 {{- end -}}
-{{- else if .Values.postgresql.external.existingSecret -}}
+{{- else if and .Values.postgresql.external.existingSecret .Values.postgresql.external.secretKeys.database -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.external.database }}
@@ -30,12 +30,12 @@
 
 {{- define "ret2shell.databaseUser" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
-{{- if .Values.postgresql.auth.existingSecret -}}
+{{- if and .Values.postgresql.auth.existingSecret .Values.postgresql.auth.secretKeys.username -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.auth.username }}
 {{- end -}}
-{{- else if .Values.postgresql.external.existingSecret -}}
+{{- else if and .Values.postgresql.external.existingSecret .Values.postgresql.external.secretKeys.username -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.external.username }}
@@ -44,12 +44,12 @@
 
 {{- define "ret2shell.databasePassword" -}}
 {{- if eq .Values.postgresql.mode "internal" -}}
-{{- if .Values.postgresql.auth.existingSecret -}}
+{{- if and .Values.postgresql.auth.existingSecret .Values.postgresql.auth.secretKeys.password -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.auth.password }}
 {{- end -}}
-{{- else if .Values.postgresql.external.existingSecret -}}
+{{- else if and .Values.postgresql.external.existingSecret .Values.postgresql.external.secretKeys.password -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.postgresql.external.password }}
@@ -67,7 +67,7 @@ disable
 {{- define "ret2shell.cacheUrl" -}}
 {{- if eq .Values.valkey.mode "internal" -}}
 {{- if .Values.valkey.auth.enabled -}}
-{{- if .Values.valkey.auth.existingSecret -}}
+{{- if and .Values.valkey.auth.existingSecret .Values.valkey.auth.secretKeys.password -}}
 {{ printf "redis://%s:%d/0" (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
 {{- else -}}
 {{ printf "redis://:%s@%s:%d/0" (.Values.valkey.auth.password | urlquery) (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
@@ -75,7 +75,7 @@ disable
 {{- else -}}
 {{ printf "redis://%s:%d/0" (include "ret2shell.valkeyName" .) (int .Values.valkey.service.port) }}
 {{- end -}}
-{{- else if .Values.valkey.external.existingSecret -}}
+{{- else if and .Values.valkey.external.existingSecret .Values.valkey.external.secretKeys.url -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.valkey.external.url }}
@@ -100,24 +100,22 @@ disable
 
 {{- define "ret2shell.queueToken" -}}
 {{- if eq .Values.nats.mode "internal" -}}
-{{- if and .Values.nats.auth.enabled (not .Values.nats.auth.existingSecret) -}}
+{{- if and .Values.nats.auth.enabled (not (and .Values.nats.auth.existingSecret .Values.nats.auth.secretKeys.token)) -}}
 {{ .Values.nats.auth.token }}
 {{- end -}}
-{{- else if .Values.nats.external.existingSecret -}}
-{{- print "" -}}
-{{- else -}}
+{{- else if not (and .Values.nats.external.existingSecret .Values.nats.external.secretKeys.token) -}}
 {{ .Values.nats.external.token }}
 {{- end -}}
 {{- end -}}
 
 {{- define "ret2shell.queueUser" -}}
-{{- if and (eq .Values.nats.mode "external") (not .Values.nats.external.existingSecret) -}}
+{{- if and (eq .Values.nats.mode "external") (not (and .Values.nats.external.existingSecret .Values.nats.external.secretKeys.user)) -}}
 {{ .Values.nats.external.user }}
 {{- end -}}
 {{- end -}}
 
 {{- define "ret2shell.queuePassword" -}}
-{{- if and (eq .Values.nats.mode "external") (not .Values.nats.external.existingSecret) -}}
+{{- if and (eq .Values.nats.mode "external") (not (and .Values.nats.external.existingSecret .Values.nats.external.secretKeys.password)) -}}
 {{ .Values.nats.external.password }}
 {{- end -}}
 {{- end -}}
@@ -157,7 +155,7 @@ false
 {{- define "ret2shell.victoriaUrl" -}}
 {{- if eq .Values.victoriaLogs.mode "internal" -}}
 {{ printf "http://%s:%d" (include "ret2shell.victoriaLogsName" .) (int .Values.victoriaLogs.service.port) }}
-{{- else if .Values.victoriaLogs.external.existingSecret -}}
+{{- else if and .Values.victoriaLogs.external.existingSecret .Values.victoriaLogs.external.secretKeys.url -}}
 {{- print "" -}}
 {{- else -}}
 {{ .Values.victoriaLogs.external.url }}
@@ -207,10 +205,10 @@ enabled = true
 server = {{ include "ret2shell.registryServer" . | quote }}
 external = {{ include "ret2shell.registryExternal" . | quote }}
 insecure = {{ include "ret2shell.registryInsecure" . }}
-{{- if and (not .Values.registry.external.existingSecret) .Values.registry.external.username }}
+{{- if and (not (and .Values.registry.external.existingSecret .Values.registry.external.secretKeys.username)) .Values.registry.external.username }}
 username = {{ .Values.registry.external.username | quote }}
 {{- end }}
-{{- if and (not .Values.registry.external.existingSecret) .Values.registry.external.password }}
+{{- if and (not (and .Values.registry.external.existingSecret .Values.registry.external.secretKeys.password)) .Values.registry.external.password }}
 password = {{ .Values.registry.external.password | quote }}
 {{- end }}
 {{- end }}
