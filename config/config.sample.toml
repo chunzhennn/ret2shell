@@ -1,3 +1,15 @@
+# * Environment overrides
+# ? A non-empty config.toml file is still required; environment variables only override values in it.
+# ? Name variables R2S_CONFIG__<SECTION>__<FIELD>, using another `__` for every nesting level.
+# ? For example, R2S_CONFIG__CLUSTER__REGISTRY__PASSWORD overrides cluster.registry.password.
+# ? The prefix is uppercase; section and field segments are case-insensitive and use snake_case names.
+# ? Strings are kept verbatim; other scalar values are parsed as the target field type.
+# ? Composite values such as arrays and tables must use TOML syntax.
+# ? For example, write an array as ['a', 'b'] and a table as { key = 'value' }.
+# ? An empty string is passed as a value; it does not unset or remove an optional field.
+# ? Environment variables override file values only. Fields managed in the database keep their existing
+# ? merge priority, so database values take precedence over environment overrides.
+
 # * Auditor config, for team name auditing.
 [auditor]
 # ? the sensitive word list file path
