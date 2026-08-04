@@ -1,3 +1,12 @@
+# * Environment variables
+# ? Use an exact `${ENVIRONMENT_VARIABLE}` placeholder to read a value from the environment.
+# ? Quote placeholders for strings and enums. Numeric-looking strings remain strings when quoted:
+# ? signing_key = '${AUTH_SIGNING_KEY}'
+# ? Leave placeholders bare for integers, booleans, arrays, and tables. Bare values must use TOML syntax:
+# ? port = ${SERVER_PORT}
+# ? external_https = ${EXTERNAL_HTTPS}
+# ? Referenced environment variables are required and must match the type of the configuration field.
+
 # * Auditor config, for team name auditing.
 [auditor]
 # ? the sensitive word list file path
