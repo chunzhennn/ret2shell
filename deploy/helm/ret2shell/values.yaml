@@ -30,6 +30,7 @@ platform:
     annotations: {}
     automountServiceAccountToken: true
   rbac:
+    # Cluster-scoped roles are only created when tryDefault=true (in-cluster orchestration).
     create: true
     useClusterAdmin: true
   persistence:
@@ -80,7 +81,7 @@ platform:
     cluster:
       enabled: true
       # tryDefault=true: use the in-cluster service account (same cluster as the platform pod)
-      # tryDefault=false: use kubeConfigPath to point at an explicit kubeconfig for a separate cluster
+      # tryDefault=false: use kubeConfigPath for a separate cluster; platform cluster RBAC is not created
       tryDefault: true
       kubeConfigPath: ""
       nodeSelector: ""

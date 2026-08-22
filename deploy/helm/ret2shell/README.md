@@ -12,8 +12,9 @@ Important constraints:
 RBAC defaults:
 
 - The chart creates a platform `ServiceAccount`
-- The chart creates a `ClusterRoleBinding`
+- When challenges run in the same cluster (`platform.config.cluster.tryDefault=true`), the chart creates a `ClusterRoleBinding`
 - By default that binding targets the built-in `cluster-admin` role because Ret2Shell currently needs broad cluster control for challenge orchestration
+- When `tryDefault=false` (separate challenge cluster via kubeconfig), those cluster privileges are not created on the platform cluster
 - You can disable chart-managed RBAC and reuse a pre-created service account with:
 
 ```bash
@@ -39,6 +40,7 @@ Useful switches:
 - `registry.mode=disabled|internal|external`
 - `registry.replicaCount=<n>` scales the bundled registry when shared storage is available
 - `victoriaLogs.mode=disabled|internal|external`
+- `platform.config.cluster.tryDefault=true|false`
 - `platform.rbac.useClusterAdmin=true|false`
 
 Operational knobs now available on the bundled dependencies include:

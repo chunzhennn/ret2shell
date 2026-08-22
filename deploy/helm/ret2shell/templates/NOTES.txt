@@ -3,6 +3,11 @@ Ret2Shell chart rendered successfully.
 - Install namespace must be `ret2shell-platform`
 - Challenge namespace is fixed to `ret2shell-challenge`
 - Platform exposure mode: `{{ .Values.platform.exposure.type }}`
+{{- if .Values.platform.config.cluster.tryDefault }}
+- Challenges use the in-cluster service account on this cluster
+{{- else }}
+- Challenges use a separate cluster via kubeconfig; no ClusterRoleBinding is created here
+{{- end }}
 
 Common install command:
 

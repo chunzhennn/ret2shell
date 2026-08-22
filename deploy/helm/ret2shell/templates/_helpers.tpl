@@ -65,6 +65,12 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
+{{- define "ret2shell.createPlatformClusterRBAC" -}}
+{{- if and .Values.platform.rbac.create .Values.platform.config.cluster.tryDefault -}}
+true
+{{- end -}}
+{{- end -}}
+
 {{- define "ret2shell.platformName" -}}
 ret2shell-platform
 {{- end -}}
