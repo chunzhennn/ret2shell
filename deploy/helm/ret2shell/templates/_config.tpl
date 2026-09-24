@@ -184,6 +184,7 @@ validator = {{ .Values.platform.config.captcha.validator | quote }}
 
 [cluster]
 enabled = {{ .Values.platform.config.cluster.enabled }}
+exposure_mode = {{ .Values.platform.config.cluster.exposureMode | default "auto" | quote }}
 try_default = {{ .Values.platform.config.cluster.tryDefault }}
 auto_infer = false
 {{- if .Values.platform.config.cluster.kubeConfigPath }}
@@ -197,6 +198,22 @@ traffic = {{ .Values.platform.config.cluster.traffic | quote }}
 {{- end }}
 {{- if .Values.platform.config.cluster.lifecycle }}
 lifecycle = {{ .Values.platform.config.cluster.lifecycle | quote }}
+{{- end }}
+{{- if eq (.Values.platform.config.cluster.exposureMode | default "auto") "tls_gateway" }}
+{{- $_ := required "platform.config.cluster.tlsGateway.domain is required for tls_gateway" .Values.platform.config.cluster.tlsGateway.domain }}
+{{- end }}
+{{- with .Values.platform.config.cluster.tlsGateway }}
+{{- if .domain }}
+[cluster.tls_gateway]
+domain = {{ .domain | quote }}
+port = {{ .port }}
+entry_point = {{ .entryPoint | quote }}
+certificate_secret = {{ .certificateSecret | quote }}
+tls_option = {{ .tlsOption | quote }}
+{{- if .ingressClass }}
+ingress_class = {{ .ingressClass | quote }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- if ne .Values.registry.mode "disabled" }}
 

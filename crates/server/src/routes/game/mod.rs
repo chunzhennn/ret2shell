@@ -169,6 +169,8 @@ pub struct Instance {
   pub game_id: i64,
   pub game_name: String,
   pub exposed_ports: Option<Vec<MappedPort>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub gateway_status: Option<String>,
 }
 
 macro_rules! get_pod_field {
@@ -236,6 +238,13 @@ impl TryFrom<Pod> for Instance {
         .map_err(|_| ResponseError::Gone("game id not found".to_owned()))?,
       game_name: get_pod_field!(value, annotations, "ret.sh.cn/game"),
       exposed_ports: None,
+      gateway_status: value
+        .metadata
+        .labels
+        .as_ref()
+        .and_then(|labels| labels.get(r2s_cluster::gateway::GATEWAY_LABEL))
+        .filter(|v| v.as_str() == "tls")
+        .map(|_| "pending".into()),
     })
   }
 }

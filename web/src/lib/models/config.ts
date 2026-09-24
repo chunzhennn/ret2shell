@@ -33,7 +33,18 @@ export type RegistryConfig = {
   insecure: boolean;
   enabled: boolean | null;
 };
+export type ExposureMode = "auto" | "node_port" | "cluster_ip" | "tls_gateway";
+export type TlsGatewayConfig = {
+  domain: string;
+  port: number;
+  entry_point: string;
+  certificate_secret: string;
+  tls_option: string;
+  ingress_class: string | null;
+};
 export type ClusterConfig = {
+  exposure_mode?: ExposureMode | null;
+  tls_gateway?: TlsGatewayConfig | null;
   try_default: boolean;
   auto_infer: boolean;
   kube_config_path: string | null;

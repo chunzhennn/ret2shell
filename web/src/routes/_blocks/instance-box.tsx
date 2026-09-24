@@ -82,185 +82,187 @@ export function InstanceBoxContent() {
   }
 
   createEffect(() => {
-    if (accountStore.token) untrack(tryConnect);
+    if (accountStore.token && instances.data?.some((i) => !i.gateway_status)) untrack(tryConnect);
   });
 
   return (
     <div class="flex flex-col space-y-2 max-w-96 w-[calc(100vw-1rem)]">
-      <Card contentClass="p-2 flex flex-row space-x-2">
-        <Button
-          disabled={connecting()}
-          loading={connecting() || wsrx.state() === WsrxState.Pending}
-          class="flex-1"
-          justify="start"
-          ghost
-          title={t("wsrx.actions.retry.title")}
-          size="sm"
-          onClick={retryConnect}
-        >
-          <Show when={!connecting() && wsrx.state() !== WsrxState.Pending}>
+      <Show when={instances.data?.some((i) => !i.gateway_status)}>
+        <Card contentClass="p-2 flex flex-row space-x-2">
+          <Button
+            disabled={connecting()}
+            loading={connecting() || wsrx.state() === WsrxState.Pending}
+            class="flex-1"
+            justify="start"
+            ghost
+            title={t("wsrx.actions.retry.title")}
+            size="sm"
+            onClick={retryConnect}
+          >
+            <Show when={!connecting() && wsrx.state() !== WsrxState.Pending}>
+              <span
+                class={clsx(
+                  "icon-[fluent--fluid-20-regular] w-5 h-5",
+                  wsrx.state() === WsrxState.Usable ? "text-success" : "text-warning"
+                )}
+              />
+            </Show>
+            <span
+              class={
+                connecting()
+                  ? "text-base opacity-60"
+                  : wsrx.state() === WsrxState.Usable
+                    ? "text-success font-bold"
+                    : "text-warning"
+              }
+            >
+              {connecting()
+                ? t("wsrx.status.connecting.title")
+                : wsrx.state() === WsrxState.Usable
+                  ? t("wsrx.status.usable.title")
+                  : wsrx.state() === WsrxState.Pending
+                    ? t("wsrx.status.pending.title")
+                    : t("wsrx.status.invalid.title")}
+            </span>
+          </Button>
+          <Button ghost={!showSettings()} square size="sm" onClick={() => setShowSettings(!showSettings())}>
+            {/* icon-[fluent--settings-20-regular] icon-[fluent--settings-20-filled] */}
             <span
               class={clsx(
-                "icon-[fluent--fluid-20-regular] w-5 h-5",
-                wsrx.state() === WsrxState.Usable ? "text-success" : "text-warning"
+                showSettings() ? "icon-[fluent--settings-20-filled]" : "icon-[fluent--settings-20-regular]",
+                "w-5 h-5",
+                showSettings() && "text-primary"
               )}
             />
-          </Show>
-          <span
-            class={
-              connecting()
-                ? "text-base opacity-60"
-                : wsrx.state() === WsrxState.Usable
-                  ? "text-success font-bold"
-                  : "text-warning"
-            }
+          </Button>
+          <Link
+            href="https://github.com/XDSEC/WebSocketReflectorX/releases"
+            ghost
+            square
+            target="_blank"
+            title={t("wsrx.downloadClient")}
+            size="sm"
           >
-            {connecting()
-              ? t("wsrx.status.connecting.title")
-              : wsrx.state() === WsrxState.Usable
-                ? t("wsrx.status.usable.title")
-                : wsrx.state() === WsrxState.Pending
-                  ? t("wsrx.status.pending.title")
-                  : t("wsrx.status.invalid.title")}
-          </span>
-        </Button>
-        <Button ghost={!showSettings()} square size="sm" onClick={() => setShowSettings(!showSettings())}>
-          {/* icon-[fluent--settings-20-regular] icon-[fluent--settings-20-filled] */}
-          <span
-            class={clsx(
-              showSettings() ? "icon-[fluent--settings-20-filled]" : "icon-[fluent--settings-20-regular]",
-              "w-5 h-5",
-              showSettings() && "text-primary"
-            )}
-          />
-        </Button>
-        <Link
-          href="https://github.com/XDSEC/WebSocketReflectorX/releases"
-          ghost
-          square
-          target="_blank"
-          title={t("wsrx.downloadClient")}
-          size="sm"
-        >
-          <span class="shrink-0 icon-[fluent--arrow-download-20-regular] w-5 h-5" />
-        </Link>
-      </Card>
-      <Show when={showSettings()}>
-        <Card contentClass="p-2 flex flex-col space-y-2">
-          <div class="flex flex-row w-full space-x-2">
-            <Input
-              size="sm"
-              class="flex-1"
-              placeholder="http://127.0.0.1:3307"
-              value={wsrx.apiAddr()}
-              onBlur={(e) => {
-                wsrx.setApiAddr(e.target.value);
-              }}
-            />
-            <Button
-              size="sm"
-              square
-              title={t("wsrx.actions.resetDefault.title")}
-              ghost
-              onClick={() => {
-                wsrx.setApiAddr("http://127.0.0.1:3307");
-              }}
-            >
-              <span class="shrink-0 icon-[fluent--arrow-reset-20-regular] w-5 h-5" />
-            </Button>
-            <Button size="sm" square title={t("general.actions.save.title")} ghost onClick={retryConnect}>
-              <span class="shrink-0 icon-[fluent--checkmark-20-regular] w-5 h-5" />
-            </Button>
-          </div>
-          <div class="flex flex-row items-center space-x-2">
-            <span class="flex-1 text-start font-bold px-2">{t("wsrx.tunnels")}</span>
-            <Button
-              ghost
-              square
-              size="sm"
-              class="flex"
-              title={t("wsrx.actions.refresh.title")}
-              onClick={() => {
-                setRefreshingTraffic(true);
-                wsrx.syncLocal().finally(() => setRefreshingTraffic(false));
-              }}
-              disabled={refreshingTraffic()}
-            >
-              <Show
-                when={refreshingTraffic()}
-                fallback={<span class="shrink-0 icon-[fluent--arrow-clockwise-20-regular] w-5 h-5" />}
-              >
-                <Spin width={16} height={16} />
-              </Show>
-            </Button>
-            <Button
-              ghost
-              square
-              size="sm"
-              class="flex"
-              title={t("wsrx.actions.openAll.title")}
-              onClick={() => {
-                setOpeningAllTraffic(true);
-                wsrx
-                  .openAllTraffic()
-                  .then(() => wsrx.syncLocal())
-                  .finally(() => setOpeningAllTraffic(false));
-              }}
-              disabled={openingAllTraffic()}
-            >
-              <Show
-                when={openingAllTraffic()}
-                fallback={<span class="shrink-0 icon-[fluent--connector-20-regular] w-5 h-5" />}
-              >
-                <Spin width={16} height={16} />
-              </Show>
-            </Button>
-            <Button
-              ghost
-              square
-              size="sm"
-              class="flex"
-              title={t("wsrx.actions.deleteOutdated.title")}
-              onClick={() => {
-                setDeletingOutdatedTraffic(true);
-                wsrx
-                  .deleteOutdatedLocal(instances.data)
-                  .then(() => wsrx.syncLocal())
-                  .finally(() => setDeletingOutdatedTraffic(false));
-              }}
-              disabled={deletingOutdatedTraffic()}
-            >
-              <Show
-                when={deletingOutdatedTraffic()}
-                fallback={<span class="shrink-0 icon-[fluent--uninstall-app-20-regular] w-5 h-5" />}
-              >
-                <Spin width={16} height={16} />
-              </Show>
-            </Button>
-            <Button
-              ghost
-              square
-              size="sm"
-              class="flex"
-              title={t("wsrx.actions.deleteAll.title")}
-              onClick={() => {
-                setDeletingAllTraffic(true);
-                wsrx
-                  .deleteAllLocal()
-                  .then(() => wsrx.syncLocal())
-                  .finally(() => setDeletingAllTraffic(false));
-              }}
-              disabled={deletingAllTraffic()}
-            >
-              <Show
-                when={deletingAllTraffic()}
-                fallback={<span class="shrink-0 icon-[fluent--uninstall-app-20-regular] text-warning w-5 h-5" />}
-              >
-                <Spin width={16} height={16} />
-              </Show>
-            </Button>
-          </div>
+            <span class="shrink-0 icon-[fluent--arrow-download-20-regular] w-5 h-5" />
+          </Link>
         </Card>
+        <Show when={showSettings()}>
+          <Card contentClass="p-2 flex flex-col space-y-2">
+            <div class="flex flex-row w-full space-x-2">
+              <Input
+                size="sm"
+                class="flex-1"
+                placeholder="http://127.0.0.1:3307"
+                value={wsrx.apiAddr()}
+                onBlur={(e) => {
+                  wsrx.setApiAddr(e.target.value);
+                }}
+              />
+              <Button
+                size="sm"
+                square
+                title={t("wsrx.actions.resetDefault.title")}
+                ghost
+                onClick={() => {
+                  wsrx.setApiAddr("http://127.0.0.1:3307");
+                }}
+              >
+                <span class="shrink-0 icon-[fluent--arrow-reset-20-regular] w-5 h-5" />
+              </Button>
+              <Button size="sm" square title={t("general.actions.save.title")} ghost onClick={retryConnect}>
+                <span class="shrink-0 icon-[fluent--checkmark-20-regular] w-5 h-5" />
+              </Button>
+            </div>
+            <div class="flex flex-row items-center space-x-2">
+              <span class="flex-1 text-start font-bold px-2">{t("wsrx.tunnels")}</span>
+              <Button
+                ghost
+                square
+                size="sm"
+                class="flex"
+                title={t("wsrx.actions.refresh.title")}
+                onClick={() => {
+                  setRefreshingTraffic(true);
+                  wsrx.syncLocal().finally(() => setRefreshingTraffic(false));
+                }}
+                disabled={refreshingTraffic()}
+              >
+                <Show
+                  when={refreshingTraffic()}
+                  fallback={<span class="shrink-0 icon-[fluent--arrow-clockwise-20-regular] w-5 h-5" />}
+                >
+                  <Spin width={16} height={16} />
+                </Show>
+              </Button>
+              <Button
+                ghost
+                square
+                size="sm"
+                class="flex"
+                title={t("wsrx.actions.openAll.title")}
+                onClick={() => {
+                  setOpeningAllTraffic(true);
+                  wsrx
+                    .openAllTraffic()
+                    .then(() => wsrx.syncLocal())
+                    .finally(() => setOpeningAllTraffic(false));
+                }}
+                disabled={openingAllTraffic()}
+              >
+                <Show
+                  when={openingAllTraffic()}
+                  fallback={<span class="shrink-0 icon-[fluent--connector-20-regular] w-5 h-5" />}
+                >
+                  <Spin width={16} height={16} />
+                </Show>
+              </Button>
+              <Button
+                ghost
+                square
+                size="sm"
+                class="flex"
+                title={t("wsrx.actions.deleteOutdated.title")}
+                onClick={() => {
+                  setDeletingOutdatedTraffic(true);
+                  wsrx
+                    .deleteOutdatedLocal(instances.data)
+                    .then(() => wsrx.syncLocal())
+                    .finally(() => setDeletingOutdatedTraffic(false));
+                }}
+                disabled={deletingOutdatedTraffic()}
+              >
+                <Show
+                  when={deletingOutdatedTraffic()}
+                  fallback={<span class="shrink-0 icon-[fluent--uninstall-app-20-regular] w-5 h-5" />}
+                >
+                  <Spin width={16} height={16} />
+                </Show>
+              </Button>
+              <Button
+                ghost
+                square
+                size="sm"
+                class="flex"
+                title={t("wsrx.actions.deleteAll.title")}
+                onClick={() => {
+                  setDeletingAllTraffic(true);
+                  wsrx
+                    .deleteAllLocal()
+                    .then(() => wsrx.syncLocal())
+                    .finally(() => setDeletingAllTraffic(false));
+                }}
+                disabled={deletingAllTraffic()}
+              >
+                <Show
+                  when={deletingAllTraffic()}
+                  fallback={<span class="shrink-0 icon-[fluent--uninstall-app-20-regular] text-warning w-5 h-5" />}
+                >
+                  <Spin width={16} height={16} />
+                </Show>
+              </Button>
+            </div>
+          </Card>
+        </Show>
       </Show>
       <For each={instances.data}>
         {(instance) => (

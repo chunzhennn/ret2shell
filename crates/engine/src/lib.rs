@@ -111,6 +111,14 @@ impl Engine {
     self.contexts.write().await.remove(key.as_ref());
   }
 
+  pub async fn expire_prefix(&self, prefix: impl AsRef<str>) {
+    self
+      .contexts
+      .write()
+      .await
+      .retain(|key, _| !key.starts_with(prefix.as_ref()));
+  }
+
   pub async fn preload(
     &self, modules: Vec<impl Fn(bool) -> Result<rune::Module, rune::ContextError>>,
     key: impl AsRef<str>, script: impl AsRef<str>, changed_at: Option<DateTime<Utc>>,

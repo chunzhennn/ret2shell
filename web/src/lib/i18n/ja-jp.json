@@ -2135,6 +2135,20 @@
       "title": "スクリプトプリセット",
       "singleNodeDirectScript": "単一ノード直結",
       "multiNodeDirectScript": "マルチノード直結"
+    },
+    "gateway": {
+      "title": "問題への接続方法",
+      "help": "設定は新しいインスタンスに適用されます。TLS / SNI には問題クラスタの Traefik、CRD、ワイルドカード証明書、TLSOption が必要です。ゲートウェイでは traffic スクリプトの代わりに組み込みルーティングを使用します。",
+      "auto": "自動（従来の動作）",
+      "domain": "問題のドメイン接尾辞",
+      "port": "外部 TLS ポート",
+      "entryPoint": "Traefik エントリーポイント",
+      "secret": "証明書 Secret 名",
+      "tlsOption": "TLSOption 名",
+      "ingressClass": "Ingress クラス（任意）",
+      "open": "サイトを開く",
+      "pending": "接続先を準備しています…",
+      "error": "接続先の設定に失敗しました。管理者に連絡してください。"
     }
   },
   "lifecycle": {

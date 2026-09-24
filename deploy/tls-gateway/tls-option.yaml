@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: TLSOption
+metadata:
+  name: ret2shell-challenge-tcp
+  namespace: ret2shell-challenge
+spec:
+  minVersion: VersionTLS12
+  sniStrict: true
+  # Raw TCP forwarding does not translate HTTP/2 to an HTTP/1.1 backend.
+  # Pwn clients that do not advertise ALPN can still connect.
+  alpnProtocols:
+    - http/1.1

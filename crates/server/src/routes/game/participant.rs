@@ -1,7 +1,7 @@
 use axum::{Extension, Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use r2s_cache::Cache;
-use r2s_cluster::{CHALLENGE_NS, Cluster, ClusterError};
+use r2s_cluster::{CHALLENGE_NS, Cluster, ClusterError, gateway, traffic::CachedPorts};
 use r2s_database::{config, game, submission, team as team_db, user::Permission};
 use r2s_engine::Engine;
 use r2s_migrator::Database;
@@ -111,6 +111,43 @@ pub(super) async fn get_self_instances(
       Err(e) => return Err(e),
     };
 
+    // Gateway instances carry immutable routing settings on their Service;
+    // their addresses and live status must not use the one-hour script cache.
+    if env
+      .metadata
+      .labels
+      .as_ref()
+      .and_then(|l| l.get(gateway::GATEWAY_LABEL))
+      .is_some_and(|v| v == "tls")
+    {
+      i.gateway_status = Some("pending".into());
+      if let Some(name) = env.metadata.name.as_deref() {
+        match cluster.at(CHALLENGE_NS).get_service(name).await {
+          Ok(service) => {
+            i.gateway_status = Some(
+              service
+                .metadata
+                .annotations
+                .as_ref()
+                .and_then(|a| a.get(gateway::STATUS_ANNOTATION))
+                .cloned()
+                .unwrap_or_else(|| "pending".into()),
+            );
+            match gateway::mapped_ports(&service) {
+              Ok(ports) => i.exposed_ports = Some(ports),
+              Err(error) => {
+                warn!(?error, "invalid gateway endpoint metadata");
+                i.gateway_status = Some("error".into());
+              }
+            }
+          }
+          Err(error) => warn!(?error, "gateway Service not yet available"),
+        }
+      }
+      result.push(i);
+      continue;
+    }
+
     if traffic_script.is_none() || traffic_script.clone().unwrap_or_default().is_empty() {
       result.push(i);
       continue;
@@ -122,13 +159,18 @@ pub(super) async fn get_self_instances(
 
     let traffic_id = i.traffic.clone();
 
-    if cache.at("traffic").exists(&traffic_id).await? {
-      i.exposed_ports = cache.at("traffic").get(&traffic_id).await?;
+    let traffic_script = traffic_script.clone().unwrap_or_default();
+    if let Some(cached) = cache
+      .at("traffic-v2")
+      .get::<CachedPorts>(&traffic_id)
+      .await?
+      && cached.script == traffic_script
+    {
+      i.exposed_ports = Some(cached.ports);
       result.push(i);
       continue;
     }
 
-    let traffic_script = traffic_script.clone().unwrap_or_default();
     let env_name = env
       .metadata
       .name
@@ -156,7 +198,7 @@ pub(super) async fn get_self_instances(
       .preload(&engine, &traffic_key, &traffic_script)
       .await?;
     let exposed_ports = match traffic_mapper
-      .expose(&engine, &traffic_key, env, service)
+      .expose(&engine, &traffic_key, &traffic_script, env, service)
       .await
     {
       Ok(ports) => ports,
@@ -171,8 +213,15 @@ pub(super) async fn get_self_instances(
       }
     };
     cache
-      .at("traffic")
-      .set_ex(&traffic_id, &exposed_ports, 3600)
+      .at("traffic-v2")
+      .set_ex(
+        &traffic_id,
+        &CachedPorts {
+          script: traffic_script,
+          ports: exposed_ports.clone(),
+        },
+        3600,
+      )
       .await?;
     i.exposed_ports = Some(exposed_ports);
     result.push(i);

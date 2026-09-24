@@ -30,6 +30,7 @@ import { passiveSupport } from "passive-events-support/src/utils";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js";
 import DownloadButton from "../download-button";
 import type { ChallengeWidgetProps } from ".";
+import Connection from "./connection";
 
 passiveSupport({
   events: ["mousewheel", "wheel"],
@@ -76,7 +77,7 @@ export default function (props: ChallengeWidgetProps) {
     await wsrx.openAllTraffic(instances.data);
   }
   function maintainInstancesWorker() {
-    if (instance()?.state === "Pending" || instanceStateIter === 0) {
+    if (instance()?.state === "Pending" || instance()?.gateway_status === "pending" || instanceStateIter === 0) {
       maintainInstances();
     }
     instanceStateIter++;
@@ -442,7 +443,7 @@ export default function (props: ChallengeWidgetProps) {
                           </Tag>
                         </div>
                         <span class="flex-1" />
-                        <Show when={wsrx.state() === WsrxState.Usable}>
+                        <Show when={!instance()?.gateway_status && wsrx.state() === WsrxState.Usable}>
                           <For each={wsrx.getTrafficLocal(instance()!, image.port!)}>
                             {(local) => (
                               <div class="flex">
@@ -475,22 +476,34 @@ export default function (props: ChallengeWidgetProps) {
                         <Show
                           when={instance()?.exposed_ports?.find((v) => v.name === image.name)}
                           fallback={
-                            <ClipboardBtn
-                              size="sm"
-                              icon="icon-[fluent--copy-add-20-regular]"
-                              iconCopied="icon-[fluent--checkmark-circle-20-regular]"
-                              title={t("wsrx.actions.copy.title")}
-                              value={getWsrxLink(instance()!.traffic, image.port!)}
-                              label="WSRX"
-                            />
+                            <Show when={!instance()?.gateway_status}>
+                              <ClipboardBtn
+                                size="sm"
+                                icon="icon-[fluent--copy-add-20-regular]"
+                                iconCopied="icon-[fluent--checkmark-circle-20-regular]"
+                                title={t("wsrx.actions.copy.title")}
+                                value={getWsrxLink(instance()!.traffic, image.port!)}
+                                label="WSRX"
+                              />
+                            </Show>
                           }
                         >
-                          <ClipboardBtn
-                            size="sm"
-                            title={t("challenge.instance.actions.copy.title")}
-                            value={instance()?.exposed_ports?.find((v) => v.name === image.name)?.address}
-                            label={instance()?.exposed_ports?.find((v) => v.name === image.name)?.address}
-                          />
+                          {(endpoint) => (
+                            <Connection
+                              endpoint={endpoint()}
+                              fallbackScheme={
+                                image.app_protocol === "http" || image.service_type === "http"
+                                  ? "http"
+                                  : image.protocol || "tcp"
+                              }
+                            />
+                          )}
+                        </Show>
+                        <Show when={instance()?.gateway_status === "pending"}>
+                          <span class="text-warning">{t("traffic.gateway.pending")}</span>
+                        </Show>
+                        <Show when={instance()?.gateway_status === "error"}>
+                          <span class="text-error">{t("traffic.gateway.error")}</span>
                         </Show>
                       </section>
                     </Show>

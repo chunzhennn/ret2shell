@@ -21,7 +21,8 @@ use kube::{
   runtime::reflector::Lookup,
 };
 use r2s_config::cluster::{
-  AppProtocol, ChallengeEnv, ChallengeImage, Config, Protocol, ServiceType,
+  AppProtocol, ChallengeEnv, ChallengeImage, Config, ExposureMode, Protocol, ServiceType,
+  TlsGatewayConfig,
 };
 use tokio_util::{codec::Framed, sync::CancellationToken};
 use tracing::{debug, error, info, warn};
@@ -37,6 +38,12 @@ pub struct ChallengeEnvSnapshot {
   pub service: Option<Service>,
 }
 
+pub struct ChallengeExposure<'a> {
+  pub has_traffic_script: bool,
+  pub mode: ExposureMode,
+  pub gateway: Option<&'a TlsGatewayConfig>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct DeleteOutdatedEnvsResult {
   pub overloaded: bool,
@@ -47,7 +54,7 @@ pub struct DeleteOutdatedEnvsResult {
 
 #[derive(Clone)]
 pub struct Cluster {
-  client: Option<Client>,
+  pub(crate) client: Option<Client>,
   pub registry: Option<Registry>,
   namespace: Option<String>,
   pub traffic: Option<TrafficMapper>,
@@ -503,10 +510,29 @@ impl Cluster {
   }
 
   pub async fn create_challenge_env(
-    &self, labels: BTreeMap<String, String>, annotations: BTreeMap<String, String>,
+    &self, mut labels: BTreeMap<String, String>, annotations: BTreeMap<String, String>,
     envs: HashMap<String, String>, env_config: ChallengeEnv, node_selector: Option<String>,
-    need_expose: bool,
+    exposure: ChallengeExposure<'_>,
   ) -> Result<ChallengeEnvSnapshot, ClusterError> {
+    let gateway_config = if exposure.mode == ExposureMode::TlsGateway {
+      let gateway = exposure
+        .gateway
+        .ok_or_else(|| ClusterError::GatewayConfig("TLS gateway settings are required".into()))?;
+      gateway.validate().map_err(ClusterError::GatewayConfig)?;
+      if env_config
+        .images
+        .iter()
+        .any(|image| image.port.is_some() && self.map_protocol(image) != "TCP")
+      {
+        return Err(ClusterError::GatewayConfig(
+          "TLS gateway only supports TCP challenge ports".into(),
+        ));
+      }
+      labels.insert(crate::gateway::GATEWAY_LABEL.into(), "tls".into());
+      Some(serde_json::to_string(gateway)?)
+    } else {
+      None
+    };
     let challenge_id = labels
       .get("ret.sh.cn/challenge")
       .ok_or(ClusterError::MissingField("challenge".to_string()))?;
@@ -634,11 +660,17 @@ impl Cluster {
       ..Default::default()
     };
 
-    let service_type = if need_expose { "NodePort" } else { "ClusterIP" };
+    let service_type = exposure.mode.service_type(exposure.has_traffic_script);
     let service = Service {
       metadata: ObjectMeta {
         name: Some(pod_name.clone()),
         labels: Some(labels.clone()),
+        annotations: gateway_config.map(|settings| {
+          BTreeMap::from([
+            (crate::gateway::CONFIG_ANNOTATION.into(), settings),
+            (crate::gateway::STATUS_ANNOTATION.into(), "pending".into()),
+          ])
+        }),
         ..Default::default()
       },
       spec: Some(k8s_openapi::api::core::v1::ServiceSpec {

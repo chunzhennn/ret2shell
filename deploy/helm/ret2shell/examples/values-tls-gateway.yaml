@@ -1,0 +1,14 @@
+# Merge with the existing PLATFORM-cluster values after the challenge gateway
+# is installed and tested. Replace the domain; select your newly built image.
+# This does not install Traefik or change the platform's own HTTP exposure.
+platform:
+  config:
+    cluster:
+      exposureMode: tls_gateway
+      tlsGateway:
+        domain: chal.example.com
+        port: 443
+        entryPoint: websecure
+        certificateSecret: ret2shell-challenge-tls
+        tlsOption: ret2shell-challenge-tcp
+        ingressClass: ""

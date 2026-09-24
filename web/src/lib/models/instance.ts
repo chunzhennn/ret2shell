@@ -1,5 +1,12 @@
 import type { DateTime } from "luxon";
 
+export type MappedPort = {
+  name: string;
+  address: string;
+  scheme?: "http" | "https" | "tcp" | "tls" | "udp" | null;
+  server_name?: string | null;
+};
+
 export type Instance = {
   state: "Pending" | "Running" | "Succeeded" | "Failed" | "Unknown";
   name: string;
@@ -15,10 +22,6 @@ export type Instance = {
   challenge_name?: string;
   game_id: number;
   game_name?: string;
-  exposed_ports:
-    | {
-        name: string;
-        address: string;
-      }[]
-    | null;
+  exposed_ports: MappedPort[] | null;
+  gateway_status?: "pending" | "configured" | "error" | null;
 };

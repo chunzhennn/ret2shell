@@ -2,6 +2,7 @@ import { inflyClient } from "@api";
 import { delayChallengeInstance, getChallengeEnv, startChallengeInstance, stopChallengeInstance } from "@api/challenge";
 import { getGameInstances } from "@api/game";
 import { deunicode } from "@api/rpc";
+import { connectionUrl, tlsCommands } from "@lib/utils/connection";
 import { getWsrxLink, wsrx } from "@lib/wsrx";
 import type { Challenge } from "@models/challenge";
 import type { Game } from "@models/game";
@@ -219,7 +220,7 @@ export class Service implements Command {
         return image.protocol || image.service_type || "tcp";
       };
       // await wsrx.openAllTraffic();
-      await wsrx.syncLocal();
+      if (!inst.gateway_status) await wsrx.syncLocal();
       // wsrx-local.service
       const inst_wsrx_local = Object.assign(Object.create(inst), {
         state: {
@@ -228,9 +229,12 @@ export class Service implements Command {
           [WsrxState.Usable]: "Running",
         }[wsrx.state()],
       });
-      io.println(`       ${ansiColors.dim("└─")} wsrx-local.service: ${getInstState(inst_wsrx_local, false)}`);
+      if (!inst.gateway_status) {
+        io.println(`       ${ansiColors.dim("└─")} wsrx-local.service: ${getInstState(inst_wsrx_local, false)}`);
+      }
       // wsrx address
       for (const image of env.images) {
+        if (inst.gateway_status) break;
         io.println(
           `          ${ansiColors.dim("Connection")}: ${ansiColors.blue(getWsrxLink(inst.traffic, image.port!))} *-> ${image.name}.service`
         );
@@ -244,12 +248,17 @@ export class Service implements Command {
           // remote address
           if (inst.exposed_ports?.find((p) => p.name === image.name)) {
             const scheme = getImageScheme(image);
-            io.println(
-              `          ${ansiColors.dim("Connection")}: ${ansiColors.blue(link(`${scheme}://${inst.exposed_ports.find((p) => p.name === image.name)?.address}`, `${scheme}://${inst.exposed_ports.find((p) => p.name === image.name)?.address}`))}`
-            );
+            const endpoint = inst.exposed_ports.find((p) => p.name === image.name)!;
+            const address = connectionUrl(endpoint, scheme)?.href || endpoint.address;
+            io.println(`          ${ansiColors.dim("Connection")}: ${ansiColors.blue(link(address, address))}`);
+            const commands = tlsCommands(endpoint);
+            if (commands) {
+              io.println(`          pwntools: ${commands.pwntools}`);
+              io.println(`          OpenSSL: ${commands.openssl}`);
+            }
           }
           // local address
-          const locals = wsrx.getTrafficLocal(inst, image.port!);
+          const locals = inst.gateway_status ? [] : wsrx.getTrafficLocal(inst, image.port!);
           for (const local of locals) {
             if (local) {
               const scheme = getImageScheme(image);

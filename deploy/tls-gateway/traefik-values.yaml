@@ -1,0 +1,46 @@
+# Standalone Traefik chart values for the challenge cluster.
+# Render-validated with Traefik Helm chart 41.6.0 (Traefik v3.7.13).
+# Render/review against your pinned chart version before installing.
+# No NodePort allocation and no default IngressClass.
+deployment:
+  replicas: 1
+updateStrategy:
+  type: Recreate
+  rollingUpdate: null
+ingressClass:
+  enabled: false
+providers:
+  kubernetesCRD:
+    enabled: true
+    namespaces: [ret2shell-challenge]
+    allowCrossNamespace: false
+    allowExternalNameServices: false
+  kubernetesIngress:
+    enabled: false
+  kubernetesGateway:
+    enabled: false
+api:
+  dashboard: false
+ingressRoute:
+  dashboard:
+    enabled: false
+service:
+  type: ClusterIP
+ports:
+  web:
+    expose:
+      default: false
+  websecure:
+    port: 8443
+    exposedPort: 443
+    # Explicit opt-in host port. Use 8443 here for an isolated initial trial,
+    # with the platform's external gateway port also set to 8443.
+    hostPort: 443
+    http3:
+      enabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi

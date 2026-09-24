@@ -5,6 +5,7 @@ import {
   useUpdateGlobalTrafficScriptMutation,
 } from "@api/cluster";
 import { usePlatformConfig } from "@api/platform";
+import GatewaySettings from "@blocks/gateway-settings";
 import { Title } from "@storage/header";
 import { t } from "@storage/theme";
 import Button from "@widgets/button";
@@ -68,6 +69,7 @@ export default function Traffic() {
       <Title page={t("traffic.title")} route="/admin/traffic" />
       <div class="flex-1 flex flex-col items-center p-3 lg:p-6 relative">
         <div class="flex-1 flex flex-col w-full">
+          <GatewaySettings config={config.data?.cluster} onSaved={onSuccess} />
           <h2 class="h-12 flex items-center border-b border-b-layer-content/10 font-bold space-x-2">
             <span class="shrink-0 icon-[fluent--cloud-flow-20-regular] w-5 h-5" />
             <span class="flex-1 text-start">{t("traffic.nodeSelector")}</span>

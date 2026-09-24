@@ -1,3 +1,4 @@
+import type { ExposureMode, TlsGatewayConfig } from "@models/config";
 import { t } from "@storage/theme";
 import { useMutation, useQuery } from "@tanstack/solid-query";
 import type { DiagnosticMarker } from "@widgets/editor";
@@ -7,6 +8,18 @@ import api, { api_root, handleHttpError, inflyClient, safeJson, toastSuccess } f
 
 export async function getClusterConfig() {
   return await api.get(`${api_root}/cluster/config`).json<ConfigMapList>();
+}
+
+export function useUpdateExposureMutation(props: { onSuccess?: () => void } = {}) {
+  return useMutation(() => ({
+    mutationFn: async (settings: { exposure_mode: ExposureMode; tls_gateway: TlsGatewayConfig | null }) =>
+      await safeJson(api.patch(`${api_root}/cluster/exposure`, { json: settings }).json<void>()),
+    onSuccess: () => {
+      toastSuccess(t("general.actions.save.status.success"));
+      props.onSuccess?.();
+    },
+    onError: (err: Error) => handleHttpError(err, t("general.actions.save.status.fail")),
+  }));
 }
 
 export function useClusterConfig({

@@ -2135,6 +2135,20 @@
       "title": "Script presets",
       "singleNodeDirectScript": "Single node direct connection",
       "multiNodeDirectScript": "Multi-node direct connection"
+    },
+    "gateway": {
+      "title": "Challenge access",
+      "help": "Changes apply to new instances. TLS / SNI requires Traefik, its CRDs, a wildcard certificate and the TLSOption in the challenge cluster. Gateway instances use built-in routing instead of traffic scripts.",
+      "auto": "Automatic (legacy behavior)",
+      "domain": "Challenge domain suffix",
+      "port": "External TLS port",
+      "entryPoint": "Traefik entry point",
+      "secret": "Certificate Secret name",
+      "tlsOption": "TLSOption name",
+      "ingressClass": "Ingress class (optional)",
+      "open": "Open website",
+      "pending": "Preparing access endpoint…",
+      "error": "Access endpoint configuration failed. Please contact the administrator."
     }
   },
   "lifecycle": {

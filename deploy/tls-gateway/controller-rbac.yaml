@@ -1,0 +1,28 @@
+# Apply in the CHALLENGE cluster only. Adjust the subject to the identity in the
+# platform's challenge kubeconfig. This does not grant permissions to Traefik.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ret2shell-tls-gateway
+  namespace: ret2shell-challenge
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["traefik.io"]
+    resources: ["ingressroutetcps"]
+    verbs: ["get", "list", "create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ret2shell-tls-gateway
+  namespace: ret2shell-challenge
+subjects:
+  - kind: ServiceAccount
+    name: ret2shell
+    namespace: ret2shell-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ret2shell-tls-gateway

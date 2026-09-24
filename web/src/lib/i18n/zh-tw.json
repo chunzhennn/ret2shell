@@ -2135,6 +2135,20 @@
       "title": "腳本預設",
       "singleNodeDirectScript": "單節點直連",
       "multiNodeDirectScript": "多節點直連"
+    },
+    "gateway": {
+      "title": "題目連線方式",
+      "help": "設定僅影響新建實例。TLS / SNI 需要在挑戰叢集準備 Traefik、CRD、萬用字元憑證和 TLSOption；閘道實例使用內建路由，不執行 traffic 腳本。",
+      "auto": "自動（相容原有行為）",
+      "domain": "題目網域後綴",
+      "port": "對外 TLS 連接埠",
+      "entryPoint": "Traefik 入口名稱",
+      "secret": "憑證 Secret 名稱",
+      "tlsOption": "TLSOption 名稱",
+      "ingressClass": "Ingress 類別（選填）",
+      "open": "開啟網站",
+      "pending": "正在準備連線入口…",
+      "error": "連線入口設定失敗，請聯絡管理員。"
     }
   },
   "lifecycle": {

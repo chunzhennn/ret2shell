@@ -14,6 +14,84 @@ pub struct RegistryConfig {
   pub enabled: Option<bool>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExposureMode {
+  #[default]
+  Auto,
+  NodePort,
+  ClusterIp,
+  TlsGateway,
+}
+
+impl ExposureMode {
+  pub fn service_type(self, has_traffic_script: bool) -> &'static str {
+    match self {
+      Self::NodePort => "NodePort",
+      Self::Auto if has_traffic_script => "NodePort",
+      _ => "ClusterIP",
+    }
+  }
+}
+
+/// Settings are copied onto each new gateway Service. Existing instances keep
+/// their original hostname and certificate when these defaults change.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct TlsGatewayConfig {
+  pub domain: String,
+  pub port: u16,
+  pub entry_point: String,
+  pub certificate_secret: String,
+  pub tls_option: String,
+  pub ingress_class: Option<String>,
+}
+
+impl TlsGatewayConfig {
+  pub fn validate(&self) -> Result<(), String> {
+    if !dns_name(&self.domain) || self.domain.len() > 200 || !self.domain.contains('.') {
+      return Err("gateway domain must be a lowercase DNS suffix of at most 200 characters".into());
+    }
+    if self.port == 0 {
+      return Err("gateway port must be nonzero".into());
+    }
+    if self.entry_point.is_empty()
+      || !self
+        .entry_point
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+      return Err("invalid gateway entry point".into());
+    }
+    for name in [&self.certificate_secret, &self.tls_option] {
+      if !dns_name(name) {
+        return Err("gateway certificate secret and TLS option must be DNS names".into());
+      }
+    }
+    if self
+      .ingress_class
+      .as_ref()
+      .is_some_and(|name| !dns_name(name))
+    {
+      return Err("invalid gateway ingress class".into());
+    }
+    Ok(())
+  }
+}
+
+fn dns_name(value: &str) -> bool {
+  !value.is_empty()
+    && value.len() <= 253
+    && value.split('.').all(|label| {
+      !label.is_empty()
+        && label.len() <= 63
+        && label
+          .bytes()
+          .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        && !label.starts_with('-')
+        && !label.ends_with('-')
+    })
+}
+
 /// `ClusterConfig` is a configuration struct for managing service settings.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, FromJsonQueryResult, PartialEq, Eq)]
 pub struct Config {
@@ -36,6 +114,9 @@ pub struct Config {
   pub traffic: Option<String>,
   /// the `lifecycle` script for challenge instance events.
   pub lifecycle: Option<String>,
+  /// None preserves the legacy traffic-script/NodePort behavior.
+  pub exposure_mode: Option<ExposureMode>,
+  pub tls_gateway: Option<TlsGatewayConfig>,
   /// `enable_capture` is a flag to enable the stream capture feature.
   pub enable_capture: Option<bool>,
   /// `capture_directory` is the directory to store the capture files.
@@ -59,6 +140,8 @@ impl Merge for Option<Config> {
         node_selector: b.node_selector.or(a.node_selector),
         traffic: b.traffic,
         lifecycle: b.lifecycle,
+        exposure_mode: b.exposure_mode.or(a.exposure_mode),
+        tls_gateway: b.tls_gateway.or(a.tls_gateway),
         enable_capture: b.enable_capture.or(a.enable_capture),
         capture_directory: b.capture_directory.or(a.capture_directory),
         registry: a.registry,
@@ -168,6 +251,44 @@ mod tests {
   use super::{AppProtocol, ChallengeEnv, ChallengeImage, Config, Protocol, RegistryConfig};
   use crate::traits::Merge;
 
+  #[test]
+  fn gateway_mode_never_allocates_a_node_port() {
+    use super::ExposureMode::*;
+    assert_eq!(Auto.service_type(false), "ClusterIP");
+    assert_eq!(Auto.service_type(true), "NodePort");
+    assert_eq!(NodePort.service_type(false), "NodePort");
+    assert_eq!(ClusterIp.service_type(true), "ClusterIP");
+    assert_eq!(TlsGateway.service_type(true), "ClusterIP");
+    let legacy: Config = serde_json::from_str(r#"{"enabled":true}"#).unwrap();
+    assert_eq!(legacy.exposure_mode.unwrap_or_default(), Auto);
+  }
+
+  #[test]
+  fn gateway_config_rejects_hostnames_that_cannot_be_sni_rules() {
+    let mut settings = super::TlsGatewayConfig {
+      domain: "chal.example.com".into(),
+      port: 443,
+      entry_point: "websecure".into(),
+      certificate_secret: "wildcard".into(),
+      tls_option: "challenge-tcp".into(),
+      ingress_class: None,
+    };
+    assert!(settings.validate().is_ok());
+    for invalid in [
+      "https://chal.example.com",
+      "*.example.com",
+      "UPPER.example.com",
+      "x`).example.com",
+      "-bad.example.com",
+    ] {
+      settings.domain = invalid.into();
+      assert!(settings.validate().is_err(), "{invalid}");
+    }
+    settings.domain = "chal.example.com".into();
+    settings.port = 0;
+    assert!(settings.validate().is_err());
+  }
+
   fn registry() -> RegistryConfig {
     RegistryConfig {
       username: Some("ci".to_owned()),
@@ -212,6 +333,8 @@ mod tests {
       enable_capture: Some(false),
       capture_directory: Some("/var/lib/r2s/capture".to_owned()),
       registry: Some(registry()),
+      exposure_mode: Some(super::ExposureMode::TlsGateway),
+      tls_gateway: None,
     });
     let overlay = Some(Config {
       enabled: false,
@@ -224,6 +347,8 @@ mod tests {
       enable_capture: Some(true),
       capture_directory: None,
       registry: None,
+      exposure_mode: None,
+      tls_gateway: None,
     });
 
     let merged = base.merge(overlay).unwrap();
@@ -241,6 +366,7 @@ mod tests {
       Some("/var/lib/r2s/capture")
     );
     assert_eq!(merged.registry, Some(registry()));
+    assert_eq!(merged.exposure_mode, Some(super::ExposureMode::TlsGateway));
   }
 
   #[test]

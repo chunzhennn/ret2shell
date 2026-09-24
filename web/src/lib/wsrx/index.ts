@@ -98,6 +98,7 @@ export class WsrxWrapper {
   }
 
   public async addLocal(instance: Instance) {
+    if (instance.gateway_status) return;
     if (this.wsrx.getState() === WsrxState.Usable) {
       for (const port of instance.ports) {
         const remote = getWsrxLink(instance.traffic, port);

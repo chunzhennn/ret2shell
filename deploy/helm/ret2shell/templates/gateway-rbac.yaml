@@ -1,0 +1,27 @@
+{{- if and .Values.platform.rbac.create (not .Values.platform.rbac.useClusterAdmin) }}
+# These permissions apply only to the cluster where this chart is installed.
+# For a separate challenge cluster, bind its kubeconfig identity there instead.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ret2shell-tls-gateway
+  namespace: {{ include "ret2shell.challengeNamespace" . }}
+rules:
+  - apiGroups: ["traefik.io"]
+    resources: ["ingressroutetcps"]
+    verbs: ["get", "list", "create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ret2shell-tls-gateway
+  namespace: {{ include "ret2shell.challengeNamespace" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ret2shell.platformServiceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ret2shell-tls-gateway
+{{- end }}

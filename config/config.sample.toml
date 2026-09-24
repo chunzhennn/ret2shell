@@ -58,6 +58,17 @@ capture_directory = "./data/captures"
 #cleanup_interval  = 60                # ? in seconds
 enable_capture = true
 
+# Challenge Service exposure: auto (legacy), node_port, cluster_ip, tls_gateway.
+# TLS gateway affects new instances only; install Traefik separately first.
+exposure_mode = "auto"
+# [cluster.tls_gateway]
+# domain = "chal.example.com"
+# port = 443
+# entry_point = "websecure"
+# certificate_secret = "ret2shell-challenge-tls"
+# tls_option = "ret2shell-challenge-tcp"
+# ingress_class = "ret2shell-challenges"
+
 # ! deprecated, please use runtime config in the admin panel.
 # traffic          = "pub async fn expose(node, service) { Ok(()) }"
 

@@ -242,7 +242,8 @@ fn resolve_lifecycle_script(
 async fn cleanup_traffic_cache(cache: Cache, snapshots: &[ChallengeEnvSnapshot]) {
   for snapshot in snapshots {
     if let Some(traffic) = pod_label(&snapshot.pod, "ret.sh.cn/traffic") {
-      cache.at("traffic").del(traffic).await.ok();
+      cache.at("traffic").del(&traffic).await.ok();
+      cache.at("traffic-v2").del(&traffic).await.ok();
     }
   }
 }

@@ -1,5 +1,9 @@
 # Ret2Shell Helm Chart
 
+For direct HTTPS and TCP-over-TLS challenge access, see the
+[TLS gateway integration guide](../../../docs/tls-gateway.md). Challenge gateway
+mode is independent of the platform website's `platform.exposure.type`.
+
 This chart installs Ret2Shell into the fixed namespace `ret2shell-platform` and uses the fixed challenge namespace `ret2shell-challenge`.
 
 Important constraints:

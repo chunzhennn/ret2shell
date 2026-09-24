@@ -93,6 +93,16 @@ platform:
       nodeSelector: ""
       traffic: ""
       lifecycle: ""
+      # Challenge Services, independent of platform.exposure.type.
+      # auto preserves existing NodePort behavior; tls_gateway affects new instances only.
+      exposureMode: auto
+      tlsGateway:
+        domain: ""
+        port: 443
+        entryPoint: websecure
+        certificateSecret: ret2shell-challenge-tls
+        tlsOption: ret2shell-challenge-tcp
+        ingressClass: ""
       enableCapture: true
     server:
       apiBasePath: /api

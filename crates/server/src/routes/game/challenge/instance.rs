@@ -213,7 +213,11 @@ pub(super) async fn start_challenge_instance(
         env_map,
         env_config,
         node_selector,
-        need_expose,
+        r2s_cluster::ChallengeExposure {
+          has_traffic_script: need_expose,
+          mode: config.exposure_mode.unwrap_or_default(),
+          gateway: config.tls_gateway.as_ref(),
+        },
       )
       .await?;
     cache

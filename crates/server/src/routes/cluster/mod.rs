@@ -33,12 +33,14 @@ pub fn router(state: &GlobalState) -> Router<GlobalState> {
     let cluster = state.cluster.clone();
     let queue = state.queue.clone();
     tokio::spawn(cluster_maintain_worker(state.clone(), cluster, queue));
+    tokio::spawn(tls_gateway_worker(state.cluster.clone()));
   }
   Router::new()
     .merge(
       Router::new()
         .route("/config", get(get_cluster_config))
         .route("/node", get(get_cluster_nodes))
+        .route("/exposure", patch(update_exposure))
         .route(
           "/node-selector",
           patch(update_default_node_selector).delete(delete_default_node_selector),
@@ -61,6 +63,51 @@ pub fn router(state: &GlobalState) -> Router<GlobalState> {
       Permission::Basic,
       Permission::Verified
     )))
+}
+
+async fn tls_gateway_worker(cluster: Cluster) {
+  let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
+  interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+  loop {
+    interval.tick().await;
+    if let Err(error) = cluster.reconcile_tls_gateway().await {
+      warn!(?error, "TLS gateway reconciliation failed; will retry");
+    }
+  }
+}
+
+#[derive(Deserialize)]
+struct ExposureRequest {
+  exposure_mode: cluster::ExposureMode,
+  tls_gateway: Option<cluster::TlsGatewayConfig>,
+}
+
+async fn update_exposure(
+  State(db): State<Database>, State(cache): State<Cache>,
+  Extension(config): Extension<config::Model>, Json(req): Json<ExposureRequest>,
+) -> Result<impl IntoResponse, ResponseError> {
+  if req.exposure_mode == cluster::ExposureMode::TlsGateway && req.tls_gateway.is_none() {
+    return Err(ResponseError::BadRequest(
+      "TLS gateway settings are required".into(),
+    ));
+  }
+  if let Some(gateway) = &req.tls_gateway {
+    gateway.validate().map_err(ResponseError::BadRequest)?;
+  }
+  config::update(
+    &db.conn,
+    config::Model {
+      cluster: Some(cluster::Config {
+        exposure_mode: Some(req.exposure_mode),
+        tls_gateway: req.tls_gateway,
+        ..config.cluster.unwrap_or_default()
+      }),
+      ..config
+    },
+  )
+  .await?;
+  cache.at("platform").del("config").await?;
+  Ok(())
 }
 
 async fn cluster_maintain_worker(state: GlobalState, cluster: Cluster, queue: Queue) {

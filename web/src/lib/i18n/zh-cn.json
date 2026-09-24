@@ -2135,6 +2135,20 @@
       "title": "脚本预设",
       "singleNodeDirectScript": "单节点直连",
       "multiNodeDirectScript": "多节点直连"
+    },
+    "gateway": {
+      "title": "题目接入方式",
+      "help": "配置仅影响新建实例。TLS / SNI 需要在挑战集群准备 Traefik、CRD、通配符证书和 TLSOption；网关实例使用内置路由，不执行 traffic 脚本。",
+      "auto": "自动（兼容原有行为）",
+      "domain": "题目域名后缀",
+      "port": "对外 TLS 端口",
+      "entryPoint": "Traefik 入口名称",
+      "secret": "证书 Secret 名称",
+      "tlsOption": "TLSOption 名称",
+      "ingressClass": "Ingress 类（可选）",
+      "open": "打开网站",
+      "pending": "正在准备访问入口…",
+      "error": "访问入口配置失败，请联系管理员。"
     }
   },
   "lifecycle": {

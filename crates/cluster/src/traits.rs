@@ -3,6 +3,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ClusterError {
+  #[error("invalid gateway configuration: {0}")]
+  GatewayConfig(String),
   #[error("kube error: {0}")]
   KubeError(#[from] kube::Error),
   #[error("failed to infer config: {0}")]
