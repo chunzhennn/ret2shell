@@ -82,12 +82,12 @@ export function InstanceBoxContent() {
   }
 
   createEffect(() => {
-    if (accountStore.token && instances.data?.some((i) => !i.gateway_status)) untrack(tryConnect);
+    if (wsrx.enabled && accountStore.token && instances.data?.some((i) => !i.gateway_status)) untrack(tryConnect);
   });
 
   return (
     <div class="flex flex-col space-y-2 max-w-96 w-[calc(100vw-1rem)]">
-      <Show when={instances.data?.some((i) => !i.gateway_status)}>
+      <Show when={wsrx.enabled && instances.data?.some((i) => !i.gateway_status)}>
         <Card contentClass="p-2 flex flex-row space-x-2">
           <Button
             disabled={connecting()}

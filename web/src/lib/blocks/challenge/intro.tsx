@@ -443,7 +443,7 @@ export default function (props: ChallengeWidgetProps) {
                           </Tag>
                         </div>
                         <span class="flex-1" />
-                        <Show when={!instance()?.gateway_status && wsrx.state() === WsrxState.Usable}>
+                        <Show when={wsrx.enabled && !instance()?.gateway_status && wsrx.state() === WsrxState.Usable}>
                           <For each={wsrx.getTrafficLocal(instance()!, image.port!)}>
                             {(local) => (
                               <div class="flex">
@@ -476,7 +476,7 @@ export default function (props: ChallengeWidgetProps) {
                         <Show
                           when={instance()?.exposed_ports?.find((v) => v.name === image.name)}
                           fallback={
-                            <Show when={!instance()?.gateway_status}>
+                            <Show when={wsrx.enabled && !instance()?.gateway_status}>
                               <ClipboardBtn
                                 size="sm"
                                 icon="icon-[fluent--copy-add-20-regular]"

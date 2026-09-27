@@ -220,7 +220,7 @@ export class Service implements Command {
         return image.protocol || image.service_type || "tcp";
       };
       // await wsrx.openAllTraffic();
-      if (!inst.gateway_status) await wsrx.syncLocal();
+      if (wsrx.enabled && !inst.gateway_status) await wsrx.syncLocal();
       // wsrx-local.service
       const inst_wsrx_local = Object.assign(Object.create(inst), {
         state: {
@@ -229,12 +229,12 @@ export class Service implements Command {
           [WsrxState.Usable]: "Running",
         }[wsrx.state()],
       });
-      if (!inst.gateway_status) {
+      if (wsrx.enabled && !inst.gateway_status) {
         io.println(`       ${ansiColors.dim("└─")} wsrx-local.service: ${getInstState(inst_wsrx_local, false)}`);
       }
       // wsrx address
       for (const image of env.images) {
-        if (inst.gateway_status) break;
+        if (!wsrx.enabled || inst.gateway_status) break;
         io.println(
           `          ${ansiColors.dim("Connection")}: ${ansiColors.blue(getWsrxLink(inst.traffic, image.port!))} *-> ${image.name}.service`
         );

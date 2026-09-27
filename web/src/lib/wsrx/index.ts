@@ -6,6 +6,8 @@ import { Wsrx, WsrxError, WsrxFeature, type WsrxInstance, type WsrxOptions, Wsrx
 import { type Accessor, createEffect, createRoot, createSignal } from "solid-js";
 
 export class WsrxWrapper {
+  // WSRX is disabled on the server; retain the client for possible future use.
+  readonly enabled = false;
   apiAddr: Accessor<string>;
   setApiAddr: (apiAddr: string) => void;
   state: Accessor<WsrxState>;
@@ -52,11 +54,12 @@ export class WsrxWrapper {
   }
 
   async connect() {
+    if (!this.enabled) return;
     await this.wsrx.connect();
   }
 
   public async syncLocal() {
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       try {
         await this.wsrx.sync();
       } catch (err) {
@@ -72,7 +75,7 @@ export class WsrxWrapper {
   }
 
   async deleteLocal(local: string) {
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       try {
         await this.wsrx.delete(local);
       } catch {}
@@ -80,7 +83,7 @@ export class WsrxWrapper {
   }
 
   public async deleteOutdatedLocal(instances?: Instance[]) {
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       for (const { local, remote } of this.traffics()) {
         if (!instances?.some((instance) => remote.includes(instance.traffic))) {
           await this.deleteLocal(local);
@@ -90,7 +93,7 @@ export class WsrxWrapper {
   }
 
   public async deleteAllLocal() {
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       for (const { local } of this.traffics()) {
         await this.deleteLocal(local);
       }
@@ -99,7 +102,7 @@ export class WsrxWrapper {
 
   public async addLocal(instance: Instance) {
     if (instance.gateway_status) return;
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       for (const port of instance.ports) {
         const remote = getWsrxLink(instance.traffic, port);
         if (!this.traffics().some((t) => t.remote === remote)) {
@@ -125,7 +128,7 @@ export class WsrxWrapper {
   }
 
   public async openAllTraffic(instances?: Instance[]) {
-    if (this.wsrx.getState() === WsrxState.Usable) {
+    if (this.enabled && this.wsrx.getState() === WsrxState.Usable) {
       for (const instance of instances ?? []) {
         await this.addLocal(instance);
       }
@@ -133,6 +136,7 @@ export class WsrxWrapper {
   }
 
   public getTrafficLocal(instance: Instance, port: number) {
+    if (!this.enabled) return [];
     return this.traffics().filter((t) => t.remote === getWsrxLink(instance.traffic, port));
   }
 }

@@ -15,6 +15,7 @@ import {
 } from "@api/game";
 import { Popover as ArkPopover } from "@ark-ui/solid";
 import UploadButton from "@blocks/upload-button";
+import { wsrx } from "@lib/wsrx";
 import type { ChallengeImage } from "@models/challenge";
 import { createForm, getValue, pattern, required, setValue, setValues } from "@modular-forms/solid";
 import { A } from "@solidjs/router";
@@ -445,7 +446,7 @@ function CreateForm(fnProps: { gameId: number; challengeId: number; onDone?: () 
           )}
         </Field>
       </div>
-      <Show when={getValue(form, "protocol") === "udp"}>
+      <Show when={wsrx.enabled && getValue(form, "protocol") === "udp"}>
         <Card level="warning" contentClass="p-2 flex flex-row space-x-2 items-center">
           <span class="shrink-0 icon-[fluent--info-20-regular] w-5 h-5" />
           <span>{t("challenge.instance.image.form.service.protocol.udpNotWorkingWithWsrx")}</span>

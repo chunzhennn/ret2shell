@@ -136,9 +136,11 @@ Service port). `port.node_port` is retained for compatibility. Existing
 Supported schemes are `http`, `https`, `tcp`, `tls`, and `udp`. The frontend
 uses the external scheme instead of inferring it from the container protocol.
 HTTPS endpoints have an open button; raw TLS endpoints provide pwntools and
-OpenSSL commands. Gateway instances neither auto-create WSRX tunnels nor show
-WSRX download/fallback controls. Existing non-gateway deployments remain
-compatible with their previous clients.
+OpenSSL commands. WSRX is disabled globally in this branch: its HTTP endpoints
+return 403 before WebSocket upgrade or Kubernetes port-forward, and the frontend
+does not connect to the local daemon or show WSRX controls. The handlers, client
+implementation and dependencies remain in place. Direct HTTP/NodePort access
+continues working for legacy instances; WSRX-only access is no longer available.
 
 ## Verification and rollback
 

@@ -95,7 +95,7 @@ fn construct_router(state: &GlobalState) -> Router<GlobalState> {
     .nest("/user", user::router(state))
     .nest("/wiki", wiki::router(state))
     .nest("/rpc", rpc::router(state))
-    .nest("/traffic", traffic::router(state))
+    .nest("/traffic", traffic::router().with_state(state.cluster.clone()))
     .route("/ping", get(ping))
     .route_layer(from_fn_with_state(state.clone(), ip_record))
     .route_layer(from_fn_with_state(state.clone(), extract_user_info))
