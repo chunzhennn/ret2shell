@@ -9,6 +9,8 @@ updateStrategy:
   rollingUpdate: null
 ingressClass:
   enabled: false
+rbac:
+  namespaced: true
 providers:
   kubernetesCRD:
     enabled: true
@@ -25,7 +27,8 @@ ingressRoute:
   dashboard:
     enabled: false
 service:
-  type: ClusterIP
+  spec:
+    type: ClusterIP
 ports:
   web:
     expose:
