@@ -25,13 +25,56 @@ pub enum ExposureMode {
 }
 
 impl ExposureMode {
-  pub fn service_type(self, has_traffic_script: bool) -> &'static str {
+  pub fn service_type(self, has_traffic_script: bool, has_direct_port: bool) -> &'static str {
     match self {
       Self::NodePort => "NodePort",
+      // Direct ports need a node port allocation even in gateway mode.
+      Self::TlsGateway if has_direct_port => "NodePort",
       Self::Auto if has_traffic_script => "NodePort",
       _ => "ClusterIP",
     }
   }
+}
+
+/// Per-service opt-out of the TLS gateway, only effective in gateway mode.
+/// Other modes keep their legacy behavior and ignore this field.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PortExposure {
+  #[default]
+  Gateway,
+  Direct,
+}
+
+/// Address template for directly exposed ports. `{node}` is replaced with the
+/// instance's node name; a plain host addresses every node behind one address.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct DirectAccessConfig {
+  pub address: String,
+}
+
+impl DirectAccessConfig {
+  pub fn validate(&self) -> Result<(), String> {
+    let rendered = self.address.replace("{node}", "node");
+    if rendered.is_empty() || rendered.len() > 253 || !host_name(&rendered) {
+      return Err(
+        "direct access address must be a host of at most 253 characters, optionally containing {node}"
+          .into(),
+      );
+    }
+    Ok(())
+  }
+
+  pub fn render(&self, node: &str) -> String {
+    self.address.replace("{node}", node)
+  }
+}
+
+fn host_name(value: &str) -> bool {
+  if let Some(inner) = value.strip_prefix('[').and_then(|v| v.strip_suffix(']')) {
+    return !inner.is_empty() && inner.bytes().all(|b| b.is_ascii_hexdigit() || b == b':');
+  }
+  dns_name(value)
 }
 
 /// Settings are copied onto each new gateway Service. Existing instances keep
@@ -117,6 +160,7 @@ pub struct Config {
   /// None preserves the legacy traffic-script/NodePort behavior.
   pub exposure_mode: Option<ExposureMode>,
   pub tls_gateway: Option<TlsGatewayConfig>,
+  pub direct_access: Option<DirectAccessConfig>,
   /// `enable_capture` is a flag to enable the stream capture feature.
   pub enable_capture: Option<bool>,
   /// `capture_directory` is the directory to store the capture files.
@@ -142,6 +186,7 @@ impl Merge for Option<Config> {
         lifecycle: b.lifecycle,
         exposure_mode: b.exposure_mode.or(a.exposure_mode),
         tls_gateway: b.tls_gateway.or(a.tls_gateway),
+        direct_access: b.direct_access.or(a.direct_access),
         enable_capture: b.enable_capture.or(a.enable_capture),
         capture_directory: b.capture_directory.or(a.capture_directory),
         registry: a.registry,
@@ -194,6 +239,9 @@ pub struct ChallengeImage {
   pub service_type: Option<ServiceType>,
   pub protocol: Option<Protocol>,
   pub app_protocol: Option<AppProtocol>,
+  /// Only effective in `tls_gateway` mode: `direct` ports skip the gateway and
+  /// are exposed through a raw node port instead.
+  pub exposure: Option<PortExposure>,
   pub description: Option<String>,
   pub restricted: Option<bool>,
 }
@@ -254,13 +302,53 @@ mod tests {
   #[test]
   fn gateway_mode_never_allocates_a_node_port() {
     use super::ExposureMode::*;
-    assert_eq!(Auto.service_type(false), "ClusterIP");
-    assert_eq!(Auto.service_type(true), "NodePort");
-    assert_eq!(NodePort.service_type(false), "NodePort");
-    assert_eq!(ClusterIp.service_type(true), "ClusterIP");
-    assert_eq!(TlsGateway.service_type(true), "ClusterIP");
+    assert_eq!(Auto.service_type(false, false), "ClusterIP");
+    assert_eq!(Auto.service_type(true, false), "NodePort");
+    assert_eq!(NodePort.service_type(false, false), "NodePort");
+    assert_eq!(ClusterIp.service_type(true, false), "ClusterIP");
+    assert_eq!(TlsGateway.service_type(true, false), "ClusterIP");
+    assert_eq!(TlsGateway.service_type(true, true), "NodePort");
     let legacy: Config = serde_json::from_str(r#"{"enabled":true}"#).unwrap();
     assert_eq!(legacy.exposure_mode.unwrap_or_default(), Auto);
+  }
+
+  #[test]
+  fn direct_access_address_accepts_hosts_and_templates() {
+    for valid in [
+      "10.92.35.10",
+      "{node}.nodes.example.com",
+      "ssh.example.com",
+      "[2001:db8::1]",
+    ] {
+      let settings = super::DirectAccessConfig {
+        address: valid.into(),
+      };
+      assert!(settings.validate().is_ok(), "{valid}");
+    }
+    assert_eq!(
+      super::DirectAccessConfig {
+        address: "{node}.nodes.example.com".into(),
+      }
+      .render("microk8s-1"),
+      "microk8s-1.nodes.example.com"
+    );
+    for invalid in [
+      "",
+      "https://ssh.example.com",
+      "ssh example.com",
+      "UPPER.example.com",
+    ] {
+      let settings = super::DirectAccessConfig {
+        address: invalid.into(),
+      };
+      assert!(settings.validate().is_err(), "{invalid}");
+    }
+    let image: ChallengeImage = serde_json::from_value(serde_json::json!({
+      "name": "ssh", "tag": "challenge:latest", "cpu": 1.0, "mem": "512Mi",
+      "port": 22, "protocol": "tcp", "app_protocol": "raw", "exposure": "direct"
+    }))
+    .unwrap();
+    assert_eq!(image.exposure, Some(super::PortExposure::Direct));
   }
 
   #[test]
@@ -315,6 +403,7 @@ mod tests {
       service_type: None,
       protocol: Some(Protocol::Tcp),
       app_protocol: Some(AppProtocol::Http),
+      exposure: None,
       description: Some("web challenge".to_owned()),
       restricted: Some(true),
     }
@@ -335,6 +424,9 @@ mod tests {
       registry: Some(registry()),
       exposure_mode: Some(super::ExposureMode::TlsGateway),
       tls_gateway: None,
+      direct_access: Some(super::DirectAccessConfig {
+        address: "ssh.example.com".to_owned(),
+      }),
     });
     let overlay = Some(Config {
       enabled: false,
@@ -349,6 +441,7 @@ mod tests {
       registry: None,
       exposure_mode: None,
       tls_gateway: None,
+      direct_access: None,
     });
 
     let merged = base.merge(overlay).unwrap();
@@ -367,6 +460,12 @@ mod tests {
     );
     assert_eq!(merged.registry, Some(registry()));
     assert_eq!(merged.exposure_mode, Some(super::ExposureMode::TlsGateway));
+    assert_eq!(
+      merged.direct_access,
+      Some(super::DirectAccessConfig {
+        address: "ssh.example.com".to_owned()
+      })
+    );
   }
 
   #[test]

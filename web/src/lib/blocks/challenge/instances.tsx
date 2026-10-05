@@ -78,6 +78,7 @@ function CreateForm(fnProps: { gameId: number; challengeId: number; onDone?: () 
       service_type: null,
       protocol: image.protocol || null,
       app_protocol: image.app_protocol || null,
+      exposure: image.exposure || null,
       port: image.port && !Number.isNaN(image.port) && image.port > 0 && image.port < 65536 ? image.port : null,
     };
   }
@@ -96,6 +97,7 @@ function CreateForm(fnProps: { gameId: number; challengeId: number; onDone?: () 
         port: null,
         protocol: null,
         app_protocol: null,
+        exposure: null,
         description: "",
       });
       challengeEnv.refetch();
@@ -409,6 +411,30 @@ function CreateForm(fnProps: { gameId: number; challengeId: number; onDone?: () 
             />
           )}
         </Field>
+        <Field name="exposure">
+          {(field, props) => (
+            <Select
+              label={t("challenge.instance.image.form.service.exposure.label")}
+              class="flex-1"
+              placeholder={t("challenge.instance.image.form.service.exposure.placeholder")}
+              items={[
+                {
+                  value: "gateway",
+                  label: t("challenge.instance.image.form.service.exposure.items.gateway"),
+                  icon: "icon-[fluent--globe-shield-20-regular]",
+                },
+                {
+                  value: "direct",
+                  label: t("challenge.instance.image.form.service.exposure.items.direct"),
+                  icon: "icon-[fluent--globe-20-regular]",
+                },
+              ]}
+              value={field.value ? [field.value as string] : []}
+              inputProps={props}
+              error={field.error}
+            />
+          )}
+        </Field>
         <Field
           name="port"
           type="number"
@@ -450,6 +476,12 @@ function CreateForm(fnProps: { gameId: number; challengeId: number; onDone?: () 
         <Card level="warning" contentClass="p-2 flex flex-row space-x-2 items-center">
           <span class="shrink-0 icon-[fluent--info-20-regular] w-5 h-5" />
           <span>{t("challenge.instance.image.form.service.protocol.udpNotWorkingWithWsrx")}</span>
+        </Card>
+      </Show>
+      <Show when={getValue(form, "exposure") === "direct"}>
+        <Card level="info" contentClass="p-2 flex flex-row space-x-2 items-center">
+          <span class="shrink-0 icon-[fluent--info-20-regular] w-5 h-5" />
+          <span>{t("challenge.instance.image.form.service.exposure.directHint")}</span>
         </Card>
       </Show>
       <div class="flex flex-row space-x-2">
@@ -881,7 +913,8 @@ export default function (props: ChallengeWidgetProps) {
               <span class="shrink-0 icon-[fluent--cloud-link-20-regular] w-5 h-5" />
               <Show when={image.port} fallback={<span class="font-bold opacity-60">N/A</span>}>
                 <span class="text-warning font-bold">
-                  {image.protocol || image.service_type || "tcp"}:{image.port} ({image.app_protocol || "raw"})
+                  {image.protocol || image.service_type || "tcp"}:{image.port} ({image.app_protocol || "raw"}
+                  {image.exposure === "direct" ? ", direct" : ""})
                 </span>
                 <span>({image.description})</span>
               </Show>

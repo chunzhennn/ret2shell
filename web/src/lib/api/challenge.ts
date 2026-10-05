@@ -435,6 +435,7 @@ function normalizeChallengeImage(image: ChallengeImage): ChallengeImage {
       ...image,
       protocol: next.protocol,
       app_protocol: next.app_protocol,
+      exposure: image.exposure ?? null,
     };
   }
 
@@ -442,6 +443,7 @@ function normalizeChallengeImage(image: ChallengeImage): ChallengeImage {
     ...image,
     protocol: image.protocol ?? null,
     app_protocol: image.app_protocol ?? null,
+    exposure: image.exposure ?? null,
   };
 }
 

@@ -3,12 +3,12 @@
 //! installed.
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::core::v1::Service;
+use k8s_openapi::api::core::v1::{Service, ServicePort};
 use kube::{
   Api, ResourceExt,
   api::{ApiResource, DynamicObject, GroupVersionKind, ListParams, Patch, PatchParams, PostParams},
 };
-use r2s_config::cluster::TlsGatewayConfig;
+use r2s_config::cluster::{DirectAccessConfig, TlsGatewayConfig};
 use serde_json::{Value, json};
 use tracing::warn;
 
@@ -17,6 +17,10 @@ use crate::{CHALLENGE_NS, Cluster, ClusterError, traffic::MappedPort};
 pub const GATEWAY_LABEL: &str = "ret.sh.cn/gateway";
 pub const CONFIG_ANNOTATION: &str = "ret.sh.cn/tls-gateway";
 pub const STATUS_ANNOTATION: &str = "ret.sh.cn/gateway-status";
+pub const DIRECT_LABEL: &str = "ret.sh.cn/direct";
+pub const DIRECT_ANNOTATION: &str = "ret.sh.cn/direct-access";
+pub const DIRECT_APP_PROTOCOL: &str = "ret.sh.cn/traffic-direct";
+pub const DIRECT_HTTP_APP_PROTOCOL: &str = "ret.sh.cn/traffic-direct-http";
 const CONTROLLER_LABEL: &str = "ret.sh.cn/gateway-controller";
 const CONTROLLER: &str = "ret2shell-traefik";
 
@@ -25,6 +29,13 @@ pub fn is_gateway_service(service: &Service) -> bool {
     .labels()
     .get(GATEWAY_LABEL)
     .is_some_and(|v| v == "tls")
+}
+
+fn port_is_direct(port: &ServicePort) -> bool {
+  port
+    .app_protocol
+    .as_deref()
+    .is_some_and(|p| p.starts_with(DIRECT_APP_PROTOCOL))
 }
 
 /// Preserve the case-sensitive traffic token while using a single DNS label.
@@ -62,6 +73,8 @@ pub fn mapped_ports(service: &Service) -> Result<Vec<MappedPort>, ClusterError> 
     .ok_or_else(|| ClusterError::MissingField("service ports".into()))?;
   ports
     .iter()
+    // Direct ports are addressed through their node port, not the gateway.
+    .filter(|port| !port_is_direct(port))
     .map(|port| {
       if port.protocol.as_deref().unwrap_or("TCP") != "TCP" || !(1..=65535).contains(&port.port) {
         return Err(ClusterError::GatewayConfig(
@@ -91,6 +104,48 @@ pub fn mapped_ports(service: &Service) -> Result<Vec<MappedPort>, ClusterError> 
     .collect()
 }
 
+/// Direct ports bypass the gateway entirely: the Service is NodePort and the
+/// player connects to the rendered address with the allocated node port.
+pub fn direct_ports(service: &Service, node_name: &str) -> Result<Vec<MappedPort>, ClusterError> {
+  let raw = service
+    .annotations()
+    .get(DIRECT_ANNOTATION)
+    .ok_or_else(|| ClusterError::MissingField(DIRECT_ANNOTATION.into()))?;
+  let config: DirectAccessConfig = serde_json::from_str(raw)?;
+  config.validate().map_err(ClusterError::GatewayConfig)?;
+  let host = config.render(node_name);
+  let ports = service
+    .spec
+    .as_ref()
+    .and_then(|s| s.ports.as_ref())
+    .ok_or_else(|| ClusterError::MissingField("service ports".into()))?;
+  ports
+    .iter()
+    .filter(|port| port_is_direct(port))
+    .map(|port| {
+      let node_port = port
+        .node_port
+        .ok_or_else(|| ClusterError::GatewayConfig("direct port has no node port".into()))?;
+      if !(1..=65535).contains(&node_port) {
+        return Err(ClusterError::GatewayConfig(
+          "direct port is out of range".into(),
+        ));
+      }
+      let scheme = if port.app_protocol.as_deref() == Some(DIRECT_HTTP_APP_PROTOCOL) {
+        "http".to_owned()
+      } else {
+        port.protocol.as_deref().unwrap_or("TCP").to_lowercase()
+      };
+      Ok(MappedPort {
+        name: port.name.clone().unwrap_or_else(|| "default".into()),
+        address: format!("{host}:{node_port}"),
+        scheme: Some(scheme),
+        server_name: None,
+      })
+    })
+    .collect()
+}
+
 /// One resource per Service; updating its routes also removes obsolete ports.
 pub fn desired_route(service: &Service) -> Result<DynamicObject, ClusterError> {
   let config = service_config(service)?;
@@ -112,9 +167,10 @@ pub fn desired_route(service: &Service) -> Result<DynamicObject, ClusterError> {
       "gateway service has no ports".into(),
     ));
   }
+  let routed_ports: Vec<&ServicePort> = ports.iter().filter(|p| !port_is_direct(p)).collect();
   let routes: Vec<Value> = endpoints
     .iter()
-    .zip(ports)
+    .zip(routed_ports)
     .map(|(endpoint, port)| {
       json!({
         "match": format!("HostSNI(`{}`)", endpoint.server_name.as_deref().unwrap_or_default()),
@@ -272,14 +328,21 @@ mod tests {
   fn service() -> Service {
     serde_json::from_value(json!({
       "metadata": {"name": "test", "namespace": CHALLENGE_NS, "uid": "test-uid",
-        "labels": {"ret.sh.cn/traffic": "aB12", GATEWAY_LABEL: "tls"},
-        "annotations": {CONFIG_ANNOTATION: serde_json::to_string(&json!({
-          "domain": "chal.example.com", "port": 443, "entry_point": "websecure",
-          "certificate_secret": "wildcard", "tls_option": "challenge-tcp"
-        })).unwrap()}},
-      "spec": {"type": "ClusterIP", "ports": [
+        "labels": {"ret.sh.cn/traffic": "aB12", GATEWAY_LABEL: "tls", DIRECT_LABEL: "true"},
+        "annotations": {
+          CONFIG_ANNOTATION: serde_json::to_string(&json!({
+            "domain": "chal.example.com", "port": 443, "entry_point": "websecure",
+            "certificate_secret": "wildcard", "tls_option": "challenge-tcp"
+          })).unwrap(),
+          DIRECT_ANNOTATION: serde_json::to_string(&json!({
+            "address": "{node}.nodes.example.com"
+          })).unwrap()
+        }},
+      "spec": {"type": "NodePort", "ports": [
         {"name": "web", "port": 8080, "protocol": "TCP", "appProtocol": "ret.sh.cn/traffic-http"},
-        {"name": "pwn", "port": 9999, "protocol": "TCP", "appProtocol": "ret.sh.cn/traffic-raw"}
+        {"name": "pwn", "port": 9999, "protocol": "TCP", "appProtocol": "ret.sh.cn/traffic-raw"},
+        {"name": "ssh", "port": 2222, "protocol": "TCP", "nodePort": 32222,
+         "appProtocol": "ret.sh.cn/traffic-direct"}
       ]}
     }))
     .unwrap()
@@ -307,11 +370,47 @@ mod tests {
     );
     assert!(!route_needs_update(&route, &route).unwrap());
     let mut changed = service();
-    changed.spec.as_mut().unwrap().ports.as_mut().unwrap().pop();
+    changed
+      .spec
+      .as_mut()
+      .unwrap()
+      .ports
+      .as_mut()
+      .unwrap()
+      .remove(1);
     assert!(route_needs_update(&route, &desired_route(&changed).unwrap()).unwrap());
     let mut foreign = route.clone();
     foreign.metadata.labels = None;
     assert!(route_needs_update(&foreign, &route).is_err());
+  }
+
+  #[test]
+  fn direct_ports_render_node_addresses_and_are_excluded_from_routes() {
+    let service = service();
+    // Only the two gateway ports are routed; the direct ssh port is not.
+    let routes = desired_route(&service).unwrap().data["spec"]["routes"]
+      .as_array()
+      .unwrap()
+      .clone();
+    assert_eq!(routes.len(), 2);
+    assert!(!serde_json::to_string(&routes).unwrap().contains("2222"));
+    let ports = direct_ports(&service, "microk8s-1").unwrap();
+    assert_eq!(ports.len(), 1);
+    assert_eq!(ports[0].name, "ssh");
+    assert_eq!(ports[0].address, "microk8s-1.nodes.example.com:32222");
+    assert_eq!(ports[0].scheme.as_deref(), Some("tcp"));
+    assert_eq!(ports[0].server_name, None);
+    let mut pending = service.clone();
+    pending.spec.as_mut().unwrap().ports.as_mut().unwrap()[2].node_port = None;
+    assert!(direct_ports(&pending, "microk8s-1").is_err());
+    let mut missing = service;
+    missing
+      .metadata
+      .annotations
+      .as_mut()
+      .unwrap()
+      .remove(DIRECT_ANNOTATION);
+    assert!(direct_ports(&missing, "microk8s-1").is_err());
   }
 
   #[test]

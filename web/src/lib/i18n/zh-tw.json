@@ -1256,6 +1256,15 @@
               },
               "requiredWhenHavePort": "當填寫了服務端口時，應用協議不能為空"
             },
+            "exposure": {
+              "label": "連接埠暴露方式",
+              "placeholder": "預設閘道",
+              "items": {
+                "gateway": "TLS 閘道（預設）",
+                "direct": "直連（NodePort）"
+              },
+              "directHint": "直連連接埠不經過 TLS 閘道，透過節點的原始連接埠存取（適用於 SSH 等 TLS/SNI 無法承載的服務）。僅在平台啟用 TLS 閘道模式且管理員已設定直連位址時生效。"
+            },
             "port": {
               "label": "服務端口",
               "placeholder": "請輸入服務端口",
@@ -2146,6 +2155,8 @@
       "secret": "憑證 Secret 名稱",
       "tlsOption": "TLSOption 名稱",
       "ingressClass": "Ingress 類別（選填）",
+      "directAddress": "直連位址模板",
+      "directAddressHelp": "為標記為「直連」的題目連接埠提供原始 NodePort 存取（如 SSH）。{node} 會替換為實例所在節點名稱；填入單一網域表示節點前負載平衡的位址。留空表示不啟用。",
       "open": "開啟網站",
       "pending": "正在準備連線入口…",
       "error": "連線入口設定失敗，請聯絡管理員。"

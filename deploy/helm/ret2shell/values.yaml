@@ -103,6 +103,11 @@ platform:
         certificateSecret: ret2shell-challenge-tls
         tlsOption: ret2shell-challenge-tcp
         ingressClass: ""
+      # Address for challenge services opted out of the TLS gateway
+      # (exposure: direct, e.g. SSH). `{node}` expands to the instance's node
+      # name; a single host addresses nodes behind one load balancer.
+      directAccess:
+        address: ""
       enableCapture: true
     server:
       apiBasePath: /api

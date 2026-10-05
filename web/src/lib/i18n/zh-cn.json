@@ -1256,6 +1256,15 @@
               },
               "requiredWhenHavePort": "当填写了服务端口时，应用协议不能为空"
             },
+            "exposure": {
+              "label": "端口暴露方式",
+              "placeholder": "默认网关",
+              "items": {
+                "gateway": "TLS 网关（默认）",
+                "direct": "直连（NodePort）"
+              },
+              "directHint": "直连端口不经过 TLS 网关，通过节点的原始端口访问（适用于 SSH 等 TLS/SNI 无法承载的服务）。仅在平台启用 TLS 网关模式且管理员已配置直连地址时生效。"
+            },
             "port": {
               "label": "服务端口",
               "placeholder": "请输入服务端口",
@@ -2146,6 +2155,8 @@
       "secret": "证书 Secret 名称",
       "tlsOption": "TLSOption 名称",
       "ingressClass": "Ingress 类（可选）",
+      "directAddress": "直连地址模板",
+      "directAddressHelp": "为标记为「直连」的题目端口提供原始 NodePort 访问（如 SSH）。{node} 会替换为实例所在节点名；填写单个域名表示节点前负载均衡的地址。留空表示不启用。",
       "open": "打开网站",
       "pending": "正在准备访问入口…",
       "error": "访问入口配置失败，请联系管理员。"

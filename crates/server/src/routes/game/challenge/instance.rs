@@ -217,6 +217,7 @@ pub(super) async fn start_challenge_instance(
           has_traffic_script: need_expose,
           mode: config.exposure_mode.unwrap_or_default(),
           gateway: config.tls_gateway.as_ref(),
+          direct: config.direct_access.as_ref(),
         },
       )
       .await?;

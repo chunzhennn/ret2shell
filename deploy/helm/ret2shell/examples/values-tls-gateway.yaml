@@ -12,3 +12,8 @@ platform:
         certificateSecret: ret2shell-challenge-tls
         tlsOption: ret2shell-challenge-tcp
         ingressClass: ""
+      # Optional: raw NodePort access for challenge services that opt out of
+      # the gateway (exposure: direct, e.g. SSH). Nodes must be reachable from
+      # players on the node port range.
+      directAccess:
+        address: "{node}.nodes.example.com"

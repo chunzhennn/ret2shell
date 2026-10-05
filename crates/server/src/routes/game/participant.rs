@@ -111,35 +111,62 @@ pub(super) async fn get_self_instances(
       Err(e) => return Err(e),
     };
 
-    // Gateway instances carry immutable routing settings on their Service;
-    // their addresses and live status must not use the one-hour script cache.
-    if env
+    // Gateway and direct instances carry immutable routing settings on their
+    // Service; their addresses and live status must not use the one-hour
+    // script cache.
+    let is_gateway = env
       .metadata
       .labels
       .as_ref()
       .and_then(|l| l.get(gateway::GATEWAY_LABEL))
-      .is_some_and(|v| v == "tls")
-    {
-      i.gateway_status = Some("pending".into());
+      .is_some_and(|v| v == "tls");
+    let is_direct = env
+      .metadata
+      .labels
+      .as_ref()
+      .and_then(|l| l.get(gateway::DIRECT_LABEL))
+      .is_some_and(|v| v == "true");
+    if is_gateway || is_direct {
+      if is_gateway {
+        i.gateway_status = Some("pending".into());
+      }
       if let Some(name) = env.metadata.name.as_deref() {
         match cluster.at(CHALLENGE_NS).get_service(name).await {
           Ok(service) => {
-            i.gateway_status = Some(
-              service
-                .metadata
-                .annotations
-                .as_ref()
-                .and_then(|a| a.get(gateway::STATUS_ANNOTATION))
-                .cloned()
-                .unwrap_or_else(|| "pending".into()),
-            );
-            match gateway::mapped_ports(&service) {
-              Ok(ports) => i.exposed_ports = Some(ports),
-              Err(error) => {
-                warn!(?error, "invalid gateway endpoint metadata");
-                i.gateway_status = Some("error".into());
+            let mut ports = Vec::new();
+            if is_gateway {
+              i.gateway_status = Some(
+                service
+                  .metadata
+                  .annotations
+                  .as_ref()
+                  .and_then(|a| a.get(gateway::STATUS_ANNOTATION))
+                  .cloned()
+                  .unwrap_or_else(|| "pending".into()),
+              );
+              match gateway::mapped_ports(&service) {
+                Ok(mapped) => ports.extend(mapped),
+                Err(error) => {
+                  warn!(?error, "invalid gateway endpoint metadata");
+                  i.gateway_status = Some("error".into());
+                }
               }
             }
+            if service
+              .metadata
+              .annotations
+              .as_ref()
+              .is_some_and(|a| a.contains_key(gateway::DIRECT_ANNOTATION))
+            {
+              match env.spec.as_ref().and_then(|spec| spec.node_name.as_deref()) {
+                Some(node_name) => match gateway::direct_ports(&service, node_name) {
+                  Ok(mapped) => ports.extend(mapped),
+                  Err(error) => warn!(?error, "invalid direct endpoint metadata"),
+                },
+                None => warn!(env=%name, "direct instance pod has no node name yet"),
+              }
+            }
+            i.exposed_ports = Some(ports);
           }
           Err(error) => warn!(?error, "gateway Service not yet available"),
         }

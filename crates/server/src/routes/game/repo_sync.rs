@@ -888,6 +888,7 @@ mod tests {
       service_type: None,
       protocol: None,
       app_protocol: None,
+      exposure: None,
       description: None,
       restricted: None,
     }

@@ -80,6 +80,7 @@ async fn tls_gateway_worker(cluster: Cluster) {
 struct ExposureRequest {
   exposure_mode: cluster::ExposureMode,
   tls_gateway: Option<cluster::TlsGatewayConfig>,
+  direct_access: Option<cluster::DirectAccessConfig>,
 }
 
 async fn update_exposure(
@@ -94,12 +95,16 @@ async fn update_exposure(
   if let Some(gateway) = &req.tls_gateway {
     gateway.validate().map_err(ResponseError::BadRequest)?;
   }
+  if let Some(direct) = &req.direct_access {
+    direct.validate().map_err(ResponseError::BadRequest)?;
+  }
   config::update(
     &db.conn,
     config::Model {
       cluster: Some(cluster::Config {
         exposure_mode: Some(req.exposure_mode),
         tls_gateway: req.tls_gateway,
+        direct_access: req.direct_access,
         ..config.cluster.unwrap_or_default()
       }),
       ..config

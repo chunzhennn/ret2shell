@@ -21,8 +21,8 @@ use kube::{
   runtime::reflector::Lookup,
 };
 use r2s_config::cluster::{
-  AppProtocol, ChallengeEnv, ChallengeImage, Config, ExposureMode, Protocol, ServiceType,
-  TlsGatewayConfig,
+  AppProtocol, ChallengeEnv, ChallengeImage, Config, DirectAccessConfig, ExposureMode,
+  PortExposure, Protocol, ServiceType, TlsGatewayConfig,
 };
 use tokio_util::{codec::Framed, sync::CancellationToken};
 use tracing::{debug, error, info, warn};
@@ -42,6 +42,7 @@ pub struct ChallengeExposure<'a> {
   pub has_traffic_script: bool,
   pub mode: ExposureMode,
   pub gateway: Option<&'a TlsGatewayConfig>,
+  pub direct: Option<&'a DirectAccessConfig>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -495,17 +496,28 @@ impl Cluster {
     }
   }
 
-  fn map_app_protocol(&self, image: &ChallengeImage) -> String {
-    match image.app_protocol {
-      Some(AppProtocol::Raw) => "raw".to_owned(),
-      Some(AppProtocol::Http) => "http".to_owned(),
+  fn map_app_protocol(&self, image: &ChallengeImage, direct: bool) -> String {
+    let mapped = match image.app_protocol {
+      Some(AppProtocol::Raw) => "raw",
+      Some(AppProtocol::Http) => "http",
       #[allow(deprecated, reason = "for backward compatibility")]
       None => match image.service_type {
-        Some(ServiceType::Http) => "http".to_owned(),
-        Some(ServiceType::Tcp) => "raw".to_owned(),
-        Some(ServiceType::Udp) => "raw".to_owned(),
-        None => "raw".to_owned(),
+        Some(ServiceType::Http) => "http",
+        Some(ServiceType::Tcp) => "raw",
+        Some(ServiceType::Udp) => "raw",
+        None => "raw",
       },
+    };
+    if direct {
+      // Direct ports carry their own marker so routing and endpoint generation
+      // can tell them apart from gateway ports on the Service alone.
+      if mapped == "http" {
+        "direct-http".to_owned()
+      } else {
+        "direct".to_owned()
+      }
+    } else {
+      mapped.to_owned()
     }
   }
 
@@ -514,22 +526,43 @@ impl Cluster {
     envs: HashMap<String, String>, env_config: ChallengeEnv, node_selector: Option<String>,
     exposure: ChallengeExposure<'_>,
   ) -> Result<ChallengeEnvSnapshot, ClusterError> {
-    let gateway_config = if exposure.mode == ExposureMode::TlsGateway {
+    let gateway_mode = exposure.mode == ExposureMode::TlsGateway;
+    let has_gateway_port = gateway_mode
+      && env_config
+        .images
+        .iter()
+        .any(|image| image.port.is_some() && image.exposure != Some(PortExposure::Direct));
+    let has_direct_port = gateway_mode
+      && env_config
+        .images
+        .iter()
+        .any(|image| image.port.is_some() && image.exposure == Some(PortExposure::Direct));
+    let gateway_config = if has_gateway_port {
       let gateway = exposure
         .gateway
         .ok_or_else(|| ClusterError::GatewayConfig("TLS gateway settings are required".into()))?;
       gateway.validate().map_err(ClusterError::GatewayConfig)?;
-      if env_config
-        .images
-        .iter()
-        .any(|image| image.port.is_some() && self.map_protocol(image) != "TCP")
-      {
+      if env_config.images.iter().any(|image| {
+        image.port.is_some()
+          && image.exposure != Some(PortExposure::Direct)
+          && self.map_protocol(image) != "TCP"
+      }) {
         return Err(ClusterError::GatewayConfig(
           "TLS gateway only supports TCP challenge ports".into(),
         ));
       }
       labels.insert(crate::gateway::GATEWAY_LABEL.into(), "tls".into());
       Some(serde_json::to_string(gateway)?)
+    } else {
+      None
+    };
+    let direct_config = if has_direct_port {
+      let direct = exposure
+        .direct
+        .ok_or_else(|| ClusterError::GatewayConfig("direct access settings are required".into()))?;
+      direct.validate().map_err(ClusterError::GatewayConfig)?;
+      labels.insert(crate::gateway::DIRECT_LABEL.into(), "true".into());
+      Some(serde_json::to_string(direct)?)
     } else {
       None
     };
@@ -660,16 +693,23 @@ impl Cluster {
       ..Default::default()
     };
 
-    let service_type = exposure.mode.service_type(exposure.has_traffic_script);
+    let service_type = exposure
+      .mode
+      .service_type(exposure.has_traffic_script, has_direct_port);
     let service = Service {
       metadata: ObjectMeta {
         name: Some(pod_name.clone()),
         labels: Some(labels.clone()),
-        annotations: gateway_config.map(|settings| {
-          BTreeMap::from([
-            (crate::gateway::CONFIG_ANNOTATION.into(), settings),
-            (crate::gateway::STATUS_ANNOTATION.into(), "pending".into()),
-          ])
+        annotations: (gateway_config.is_some() || direct_config.is_some()).then(|| {
+          let mut annotations = BTreeMap::new();
+          if let Some(settings) = &gateway_config {
+            annotations.insert(crate::gateway::CONFIG_ANNOTATION.into(), settings.clone());
+            annotations.insert(crate::gateway::STATUS_ANNOTATION.into(), "pending".into());
+          }
+          if let Some(settings) = &direct_config {
+            annotations.insert(crate::gateway::DIRECT_ANNOTATION.into(), settings.clone());
+          }
+          annotations
         }),
         ..Default::default()
       },
@@ -692,7 +732,10 @@ impl Cluster {
                 .map(|port| k8s_openapi::api::core::v1::ServicePort {
                   app_protocol: Some(format!(
                     "ret.sh.cn/traffic-{}",
-                    self.map_app_protocol(image)
+                    self.map_app_protocol(
+                      image,
+                      has_direct_port && image.exposure == Some(PortExposure::Direct)
+                    )
                   )),
                   name: Some(image.name.clone()),
                   port: port as i32,

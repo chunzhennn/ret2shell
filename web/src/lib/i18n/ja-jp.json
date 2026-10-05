@@ -1256,6 +1256,15 @@
               },
               "requiredWhenHavePort": "サービスのポートを入力した場合、アプリケーションプロトコルは空にできません"
             },
+            "exposure": {
+              "label": "ポート公開方式",
+              "placeholder": "既定はゲートウェイ",
+              "items": {
+                "gateway": "TLS ゲートウェイ（既定）",
+                "direct": "直接接続（NodePort）"
+              },
+              "directHint": "直接接続ポートは TLS ゲートウェイを経由せず、ノードの生ポートでアクセスします（SSH など TLS/SNI で運べないサービス向け）。プラットフォームが TLS ゲートウェイモードで、直接接続アドレスが設定されている場合のみ有効です。"
+            },
             "port": {
               "label": "サービスのポート",
               "placeholder": "サービスのポートを入力してください",
@@ -2146,6 +2155,8 @@
       "secret": "証明書 Secret 名",
       "tlsOption": "TLSOption 名",
       "ingressClass": "Ingress クラス（任意）",
+      "directAddress": "直接接続アドレス",
+      "directAddressHelp": "「直接接続」指定のサービスポートに生の NodePort アクセスを提供します（SSH など）。{node} はインスタンスの配置ノード名に置き換えられます。単一ホストを指定するとロードバランサー背後のノードを表します。空欄で無効になります。",
       "open": "サイトを開く",
       "pending": "接続先を準備しています…",
       "error": "接続先の設定に失敗しました。管理者に連絡してください。"

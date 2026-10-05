@@ -15,6 +15,7 @@ export default function GatewaySettings(props: { config?: ClusterConfig; onSaved
   const [secret, setSecret] = createSignal("ret2shell-challenge-tls");
   const [tlsOption, setTlsOption] = createSignal("ret2shell-challenge-tcp");
   const [ingressClass, setIngressClass] = createSignal("");
+  const [directAddress, setDirectAddress] = createSignal("");
   createEffect(() => {
     setMode(props.config?.exposure_mode || "auto");
     const gateway = props.config?.tls_gateway;
@@ -24,6 +25,7 @@ export default function GatewaySettings(props: { config?: ClusterConfig; onSaved
     setSecret(gateway?.certificate_secret || "ret2shell-challenge-tls");
     setTlsOption(gateway?.tls_option || "ret2shell-challenge-tcp");
     setIngressClass(gateway?.ingress_class || "");
+    setDirectAddress(props.config?.direct_access?.address || "");
   });
   const update = useUpdateExposureMutation({ onSuccess: props.onSaved });
   return (
@@ -79,7 +81,17 @@ export default function GatewaySettings(props: { config?: ClusterConfig; onSaved
             {t("traffic.gateway.ingressClass")}
             <Input id={`${id}-ingressClass`} value={ingressClass()} onInput={(e) => setIngressClass(e.target.value)} />
           </label>
+          <label for={`${id}-directAddress`}>
+            {t("traffic.gateway.directAddress")}
+            <Input
+              id={`${id}-directAddress`}
+              value={directAddress()}
+              placeholder="{node}.nodes.example.com"
+              onInput={(e) => setDirectAddress(e.target.value)}
+            />
+          </label>
         </div>
+        <p class="text-sm opacity-70">{t("traffic.gateway.directAddressHelp")}</p>
       </Show>
       <Button
         size="sm"
@@ -99,6 +111,8 @@ export default function GatewaySettings(props: { config?: ClusterConfig; onSaved
                     ingress_class: ingressClass().trim() || null,
                   }
                 : null,
+            direct_access:
+              mode() === "tls_gateway" && directAddress().trim() ? { address: directAddress().trim() } : null,
           })
         }
       >

@@ -4,6 +4,9 @@ Ret2Shell supports standard HTTPS and raw TCP-over-TLS challenge access through
 Traefik. Players use a browser, pwntools or OpenSSL; no Ret2Shell-specific client
 is required. Challenge payloads go directly through Traefik to the challenge
 Service, without traversing the platform API server or Kubernetes port-forward.
+Protocols that cannot be demultiplexed on the shared TLS port (SSH, UDP) can opt
+out per service and use a direct node port instead; see
+[Direct exposed ports](#direct-exposed-ports).
 
 ## Platform configuration
 
@@ -21,13 +24,16 @@ permission) is independent of the platform website's own Service type.
     "certificate_secret": "ret2shell-challenge-tls",
     "tls_option": "ret2shell-challenge-tcp",
     "ingress_class": null
+  },
+  "direct_access": {
+    "address": "{node}.nodes.example.com"
   }
 }
 ```
 
-The equivalent TOML fields are `cluster.exposure_mode` and
-`cluster.tls_gateway`. Helm exposes them as
-`platform.config.cluster.exposureMode` and `tlsGateway`; see
+The equivalent TOML fields are `cluster.exposure_mode`, `cluster.tls_gateway`
+and `cluster.direct_access`. Helm exposes them as
+`platform.config.cluster.exposureMode`, `tlsGateway` and `directAccess`; see
 [the overlay](../deploy/helm/ret2shell/examples/values-tls-gateway.yaml).
 The database's optional runtime mode overrides the file setting. An explicit
 `auto` in the administration page also overrides a Helm `tls_gateway` setting.
@@ -37,14 +43,51 @@ The database's optional runtime mode overrides the file setting. An explicit
 | `auto` (default) | Original behavior: NodePort when a traffic script exists, otherwise ClusterIP |
 | `node_port` | NodePort; configure a traffic script to display direct addresses |
 | `cluster_ip` | ClusterIP; suitable for a separately managed ingress/traffic script |
-| `tls_gateway` | ClusterIP, labelled `ret.sh.cn/gateway=tls`; built-in SNI routing |
+| `tls_gateway` | ClusterIP, labelled `ret.sh.cn/gateway=tls`; built-in SNI routing. NodePort instead when any service opts for direct exposure |
 
-Gateway mode rejects UDP/STCP exposed ports before creating a Pod. The container
+Gateway mode rejects UDP/STCP ports that would go through the gateway before
+creating a Pod; direct-exposed ports may use any protocol. The container
 remains configured with its actual plaintext protocol (`tcp` with `http` or
 `raw`). Each gateway Service stores its configuration snapshot in
 `ret.sh.cn/tls-gateway`. Changes apply only to new instances, so a mode/domain
 change does not silently migrate active challenges. No existing Service is
 automatically converted from NodePort to ClusterIP.
+
+## Direct exposed ports
+
+The shared gateway port demultiplexes instances by TLS SNI, so protocols
+without a TLS ClientHello — SSH is the common case — cannot ride the gateway.
+A challenge service can set its exposure to `direct` to opt out: its port gets
+no `IngressRouteTCP` route and is addressed through a raw node port, exactly
+like the legacy NodePort behavior.
+
+Direct exposure only takes effect in `tls_gateway` mode; in other modes the
+field is inert and the platform-wide behavior applies. A Service with any
+direct port is created as NodePort (gateway-labelled ports on the same Service
+keep their Traefik routes — `nativeLB` reaches pod endpoints regardless of the
+Service type — but they also get node ports allocated). Services store the
+address template snapshot in `ret.sh.cn/direct-access` and are labelled
+`ret.sh.cn/direct=true`; endpoints render as `<rendered address>:<node port>`
+with the container protocol as scheme (`tcp`, `udp`, or `http`).
+
+The address template comes from `cluster.direct_access`:
+
+- `{node}.nodes.example.com` renders the instance's node name into the host,
+  for clusters where each node has its own reachable name;
+- a plain host such as `ssh.example.com` addresses every node behind one load
+  balancer or port-forwarding layer.
+
+Prerequisites and caveats:
+
+- Players must be able to reach the challenge nodes on the node port range
+  (30000-32767 by default), the same requirement as legacy NodePort mode. In
+  the Traefik-gateway-only deployment described above, cluster nodes are often
+  not player-reachable and must be exposed first.
+- Direct access is only as isolated as the allocated node port; there is no
+  TLS termination or per-instance hostname. Challenges should carry their own
+  authentication (an SSH server with credentials, for example).
+- UDP/STCP service ports are allowed on direct-exposed services, which also
+  makes UDP challenges usable in gateway mode.
 
 ## Route lifecycle
 

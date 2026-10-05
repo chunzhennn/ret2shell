@@ -42,9 +42,13 @@ export type TlsGatewayConfig = {
   tls_option: string;
   ingress_class: string | null;
 };
+export type DirectAccessConfig = {
+  address: string;
+};
 export type ClusterConfig = {
   exposure_mode?: ExposureMode | null;
   tls_gateway?: TlsGatewayConfig | null;
+  direct_access?: DirectAccessConfig | null;
   try_default: boolean;
   auto_infer: boolean;
   kube_config_path: string | null;

@@ -1,4 +1,4 @@
-import type { ExposureMode, TlsGatewayConfig } from "@models/config";
+import type { DirectAccessConfig, ExposureMode, TlsGatewayConfig } from "@models/config";
 import { t } from "@storage/theme";
 import { useMutation, useQuery } from "@tanstack/solid-query";
 import type { DiagnosticMarker } from "@widgets/editor";
@@ -12,8 +12,11 @@ export async function getClusterConfig() {
 
 export function useUpdateExposureMutation(props: { onSuccess?: () => void } = {}) {
   return useMutation(() => ({
-    mutationFn: async (settings: { exposure_mode: ExposureMode; tls_gateway: TlsGatewayConfig | null }) =>
-      await safeJson(api.patch(`${api_root}/cluster/exposure`, { json: settings }).json<void>()),
+    mutationFn: async (settings: {
+      exposure_mode: ExposureMode;
+      tls_gateway: TlsGatewayConfig | null;
+      direct_access: DirectAccessConfig | null;
+    }) => await safeJson(api.patch(`${api_root}/cluster/exposure`, { json: settings }).json<void>()),
     onSuccess: () => {
       toastSuccess(t("general.actions.save.status.success"));
       props.onSuccess?.();

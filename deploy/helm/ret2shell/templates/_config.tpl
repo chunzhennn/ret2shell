@@ -215,6 +215,12 @@ ingress_class = {{ .ingressClass | quote }}
 {{- end }}
 {{- end }}
 {{- end }}
+{{- with .Values.platform.config.cluster.directAccess }}
+{{- if .address }}
+[cluster.direct_access]
+address = {{ .address | quote }}
+{{- end }}
+{{- end }}
 {{- if ne .Values.registry.mode "disabled" }}
 
 [cluster.registry]

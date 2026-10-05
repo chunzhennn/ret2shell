@@ -27,6 +27,8 @@ export type ChallengeImage = {
   port: number | null;
   protocol?: "tcp" | "stcp" | "udp" | null;
   app_protocol?: "raw" | "http" | null;
+  /** Only effective with the tls_gateway exposure mode. */
+  exposure?: "gateway" | "direct" | null;
   service_type?: "http" | "tcp" | "udp" | null;
   description: string | null;
   restricted: boolean | null;

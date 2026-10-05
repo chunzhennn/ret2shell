@@ -1256,6 +1256,15 @@
               },
               "requiredWhenHavePort": "The application protocol cannot be empty when a service port is open"
             },
+            "exposure": {
+              "label": "Port exposure",
+              "placeholder": "Gateway by default",
+              "items": {
+                "gateway": "TLS gateway (default)",
+                "direct": "Direct (NodePort)"
+              },
+              "directHint": "Direct ports bypass the TLS gateway and are reached through a raw node port (for services TLS/SNI cannot carry, such as SSH). Only effective when the platform uses TLS gateway mode and a direct address is configured."
+            },
             "port": {
               "label": "Service port",
               "placeholder": "Please enter the service port",
@@ -2146,6 +2155,8 @@
       "secret": "Certificate Secret name",
       "tlsOption": "TLSOption name",
       "ingressClass": "Ingress class (optional)",
+      "directAddress": "Direct address template",
+      "directAddressHelp": "Provides raw NodePort access for services marked as direct (e.g. SSH). {node} expands to the instance's node name; a single host addresses nodes behind one load balancer. Leave empty to disable.",
       "open": "Open website",
       "pending": "Preparing access endpoint…",
       "error": "Access endpoint configuration failed. Please contact the administrator."

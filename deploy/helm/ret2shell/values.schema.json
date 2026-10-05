@@ -132,6 +132,18 @@
                     "certificateSecret",
                     "tlsOption"
                   ]
+                },
+                "directAccess": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 253
+                    }
+                  },
+                  "required": [
+                    "address"
+                  ]
                 }
               }
             }
